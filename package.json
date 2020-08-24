@@ -1,0 +1,26 @@
+{
+    "name": "@wt/lib-stock",
+    "version": "1.0.0",
+    "description": "股票算法框架及实现库",
+    "main": "lib-stock.js",
+    "author": "Wen Tao<mail.wentao@gmail.com>",
+    "license": "MIT",
+    "scripts": {
+        "build": "rollup --config"
+    },
+    "dependencies": {
+        "debug": "^4.1.1",
+        "lodash": "^4.17.20",
+        "moment": "^2.27.0"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.11.4",
+        "@babel/plugin-transform-runtime": "^7.11.0",
+        "@babel/preset-env": "^7.11.0",
+        "@rollup/plugin-babel": "^5.2.0",
+        "@rollup/plugin-commonjs": "^15.0.0",
+        "@rollup/plugin-node-resolve": "^9.0.0",
+        "rollup": "^2.26.5",
+        "rollup-plugin-terser": "^7.0.0"
+    }
+}
