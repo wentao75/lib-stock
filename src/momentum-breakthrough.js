@@ -85,9 +85,10 @@ function checkMMBSellTransaction(stock, tradeDate, index, stockData, options) {
 
     // 检查是否符合动能突破买入条件
     if (
+        options.MB &&
         !_.isEmpty(
             checkMMBBuyTransaction(
-                100000,
+                options.initBalance,
                 stock.info,
                 tradeDate,
                 index,

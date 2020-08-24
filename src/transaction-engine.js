@@ -348,6 +348,15 @@ function parseCapital(capitalData) {
     let selltypes = {};
     //let selltype_times = {};
 
+    // 收益率：表示单位成本的收入比例
+    let ror_win = 0;
+    let ror_loss = 0;
+    let ror = 0;
+
+    let tmp_cost = 0;
+    let tmp_cost_win = 0;
+    let tmp_cost_loss = 0;
+
     let currentType = 0;
     let tmp_times = 0;
     let tmp_windays = 0;
@@ -368,6 +377,7 @@ function parseCapital(capitalData) {
         if (log.profit >= 0) {
             count_win++;
             total_win += log.profit;
+            tmp_cost_win += -log.buy.total;
             if (max_profit < log.profit) max_profit = log.profit;
 
             tmp_windays += days;
@@ -389,6 +399,7 @@ function parseCapital(capitalData) {
         } else {
             count_loss++;
             total_loss += log.profit;
+            tmp_cost_loss += -log.buy.total;
             if (max_loss > log.profit) max_loss = log.profit;
 
             tmp_lossdays += days;
@@ -408,12 +419,14 @@ function parseCapital(capitalData) {
 
             selltypes[log.sell.methodType].loss_times += 1;
         }
+
         total_profit += log.profit;
         total_fee +=
             log.buy.commission +
             log.buy.fee +
             log.buy.duty +
             (log.sell.commission + log.sell.fee + log.sell.duty);
+        tmp_cost += -log.buy.total;
     }
 
     if (currentType === 1) {
@@ -428,6 +441,10 @@ function parseCapital(capitalData) {
 
     average_windays = Number((tmp_windays / count_win).toFixed(1));
     average_lossdays = Number((tmp_lossdays / count_loss).toFixed(1));
+
+    ror = total_profit / tmp_cost;
+    ror_win = total_win / tmp_cost_win;
+    ror_loss = total_loss / tmp_cost_loss;
 
     return {
         count,
@@ -449,6 +466,10 @@ function parseCapital(capitalData) {
         average_windays,
         average_lossdays,
         selltypes,
+
+        ror,
+        ror_win,
+        ror_loss,
     };
 }
 
@@ -476,11 +497,20 @@ function logCapitalReport(log, capitalData) {
 
     let capitalResult = parseCapital(capitalData);
     // log(``);
-    log(`  总净利润：${formatFxstr(capitalResult.total_profit)}`);
+    log(
+        `  总净利润：${formatFxstr(capitalResult.total_profit)},  收益率 ${(
+            capitalResult.ror * 100
+        ).toFixed(2)}%`
+    );
     log(
         `  毛利润： ${formatFxstr(
             capitalResult.total_win
         )},  总亏损：${formatFxstr(capitalResult.total_loss)}`
+    );
+    log(
+        `  盈利收益率： ${(capitalResult.ror_win * 100).toFixed(
+            2
+        )}%,  亏损收益率：${(capitalResult.ror_loss * 100).toFixed(2)}%`
     );
     log("");
     log(
