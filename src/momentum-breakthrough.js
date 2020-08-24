@@ -85,7 +85,7 @@ function checkMMBSellTransaction(stock, tradeDate, index, stockData, options) {
 
     // 检查是否符合动能突破买入条件
     if (
-        options.MB &&
+        !options.nommbsell &&
         !_.isEmpty(
             checkMMBBuyTransaction(
                 options.initBalance,
@@ -104,7 +104,7 @@ function checkMMBSellTransaction(stock, tradeDate, index, stockData, options) {
     let currentData = stockData[index];
 
     // 目前有持仓，检查是否达到盈利卖出条件
-    if (options.OS && currentData.open > stock.price) {
+    if (!options.nommb1 && currentData.open > stock.price) {
         // 采用第二天开盘价盈利就卖出的策略
         debug(
             `开盘盈利策略符合：${currentData.open.toFixed(
@@ -122,43 +122,45 @@ function checkMMBSellTransaction(stock, tradeDate, index, stockData, options) {
         );
     }
 
-    // 平均波幅的计算日数
-    let N = (options && options.N) || 1;
-    // 止损使用的波幅下降百分比
-    let L = (options && options.L) || 0.5;
-    // 有持仓，检查是否达到卖出条件
-    // 第一个卖出条件是买入后按照买入价格及波动数据的反向百分比设置
-    let moment = 0;
-    for (let i = 0; i < N; i++) {
-        if (index - i - 1 >= 0) {
-            let tmp = stockData[index - i - 1];
-            if (options.mmbType === "hl") {
-                moment += tmp.high - tmp.low;
-            } else {
-                moment += tmp.high - tmp.close;
+    if (!options.nommb2) {
+        // 平均波幅的计算日数
+        let N = (options && options.N) || 1;
+        // 止损使用的波幅下降百分比
+        let L = (options && options.L) || 0.5;
+        // 有持仓，检查是否达到卖出条件
+        // 第一个卖出条件是买入后按照买入价格及波动数据的反向百分比设置
+        let moment = 0;
+        for (let i = 0; i < N; i++) {
+            if (index - i - 1 >= 0) {
+                let tmp = stockData[index - i - 1];
+                if (options.mmbType === "hl") {
+                    moment += tmp.high - tmp.low;
+                } else {
+                    moment += tmp.high - tmp.close;
+                }
             }
         }
-    }
-    moment = moment / N;
+        moment = moment / N;
 
-    let targetPrice = currentData.open - moment * L;
-    // let targetPrice2 = stock.price - moment * L;
-    // let targetPrice =
-    //     targetPrice1 >= targetPrice2 ? targetPrice1 : targetPrice2;
+        let targetPrice = currentData.open - moment * L;
+        // let targetPrice2 = stock.price - moment * L;
+        // let targetPrice =
+        //     targetPrice1 >= targetPrice2 ? targetPrice1 : targetPrice2;
 
-    if (targetPrice <= currentData.open && targetPrice >= currentData.low) {
-        // 执行波动卖出
-        return engine.createSellTransaction(
-            stock.info,
-            tradeDate,
-            index,
-            stock.count,
-            targetPrice,
-            "mmb2",
-            `动能突破卖出：${targetPrice.toFixed(2)} (= ${
-                currentData.open
-            }-${moment.toFixed(2)}*${L * 100}%)`
-        );
+        if (targetPrice <= currentData.open && targetPrice >= currentData.low) {
+            // 执行波动卖出
+            return engine.createSellTransaction(
+                stock.info,
+                tradeDate,
+                index,
+                stock.count,
+                targetPrice,
+                "mmb2",
+                `动能突破卖出：${targetPrice.toFixed(2)} (= ${
+                    currentData.open
+                }-${moment.toFixed(2)}*${L * 100}%)`
+            );
+        }
     }
 }
 
