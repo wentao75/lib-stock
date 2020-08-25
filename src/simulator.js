@@ -90,6 +90,8 @@ async function simulate(options) {
                     debug(
                         `找到开始日期，开始执行算法！${index}, ${daily.trade_date}`
                     );
+                } else {
+                    debug(`执行算法！${index}, ${daily.trade_date}`);
                 }
                 currentDate = tradeDate;
                 // this.log(`%o`, engine);

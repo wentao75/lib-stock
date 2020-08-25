@@ -37,6 +37,7 @@ async function executeTransaction(
     let tradeDate = stockData[index].trade_date;
     let stockInfo = capitalData.info;
     if (options.stoploss) {
+        debug(`止损检查：${tradeDate}, %o`, stockData[index]);
         translog = options.stoploss.checkStoplossTransaction(
             stockInfo,
             capitalData && capitalData.stock,

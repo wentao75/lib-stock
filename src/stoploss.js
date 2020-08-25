@@ -3,6 +3,9 @@ import _ from "lodash";
 // const engine = require("./transaction-engine");
 import engine from "./transaction-engine";
 
+import debugpkg from "debug";
+const debug = debugpkg("stoploss");
+
 /**
  * 检查是否需要执行止损
  * @param {*} stock 持仓信息
@@ -18,6 +21,11 @@ function checkStoplossTransaction(stockInfo, stock, index, stockData, options) {
     // 这里检查纯粹的百分比止损
     let lossPrice = stock.price * (1 - S);
     let tradeDate = currentData.trade_date;
+    debug(
+        `止损检查${tradeDate}: ${currentData.low}] <= ${lossPrice.toFixed(
+            2
+        )} (=${stock.price.toFixed(2)}*(1-${(S * 100).toFixed(2)}%))`
+    );
     if (currentData.low <= lossPrice) {
         // 当日价格范围达到止损值
         return engine.createSellTransaction(

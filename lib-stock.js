@@ -42,6 +42,7 @@
       let stockInfo = capitalData.info;
 
       if (options.stoploss) {
+        debug(`止损检查：${tradeDate}, %o`, stockData[index]);
         translog = options.stoploss.checkStoplossTransaction(stockInfo, capitalData && capitalData.stock, // tradeDate,
         index, stockData, options);
 
@@ -544,11 +545,21 @@
 
     function checkMMBSellTransaction(stockInfo, stock, index, stockData, options) {
       if (___default['default'].isEmpty(stock) || stock.count <= 0) return; // 检查是否符合动能突破买入条件
-
-      if (!options.nommbsell && !___default['default'].isEmpty(checkMMBBuyTransaction(stockInfo, options.initBalance, index, stockData, options))) {
-        // 可以买入，那么当日保持
-        return;
-      }
+      // if (
+      //     !options.nommbsell &&
+      //     !_.isEmpty(
+      //         checkMMBBuyTransaction(
+      //             stockInfo,
+      //             options.initBalance,
+      //             index,
+      //             stockData,
+      //             options
+      //         )
+      //     )
+      // ) {
+      //     // 可以买入，那么当日保持
+      //     return;
+      // }
 
       let currentData = stockData[index];
       let tradeDate = currentData.trade_date; // 目前有持仓，检查是否达到盈利卖出条件
@@ -677,6 +688,8 @@
               }
 
               debug$2(`找到开始日期，开始执行算法！${index}, ${daily.trade_date}`);
+            } else {
+              debug$2(`执行算法！${index}, ${daily.trade_date}`);
             }
 
             currentDate = tradeDate; // this.log(`%o`, engine);
@@ -747,6 +760,7 @@
     }
 
     // const _ = require("lodash");
+    const debug$3 = debugpkg__default['default']("stoploss");
     /**
      * 检查是否需要执行止损
      * @param {*} stock 持仓信息
@@ -762,6 +776,7 @@
 
       let lossPrice = stock.price * (1 - S);
       let tradeDate = currentData.trade_date;
+      debug$3(`止损检查${tradeDate}: ${currentData.low}] <= ${lossPrice.toFixed(2)} (=${stock.price.toFixed(2)}*(1-${(S * 100).toFixed(2)}%))`);
 
       if (currentData.low <= lossPrice) {
         // 当日价格范围达到止损值

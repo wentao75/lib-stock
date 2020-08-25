@@ -79,21 +79,21 @@ function checkMMBSellTransaction(stockInfo, stock, index, stockData, options) {
     if (_.isEmpty(stock) || stock.count <= 0) return;
 
     // 检查是否符合动能突破买入条件
-    if (
-        !options.nommbsell &&
-        !_.isEmpty(
-            checkMMBBuyTransaction(
-                stockInfo,
-                options.initBalance,
-                index,
-                stockData,
-                options
-            )
-        )
-    ) {
-        // 可以买入，那么当日保持
-        return;
-    }
+    // if (
+    //     !options.nommbsell &&
+    //     !_.isEmpty(
+    //         checkMMBBuyTransaction(
+    //             stockInfo,
+    //             options.initBalance,
+    //             index,
+    //             stockData,
+    //             options
+    //         )
+    //     )
+    // ) {
+    //     // 可以买入，那么当日保持
+    //     return;
+    // }
 
     let currentData = stockData[index];
     let tradeDate = currentData.trade_date;
