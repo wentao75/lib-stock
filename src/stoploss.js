@@ -6,11 +6,10 @@ import engine from "./transaction-engine";
 /**
  * 检查是否需要执行止损
  * @param {*} stock 持仓信息
- * @param {*} tradeDate 交易日期
  * @param {int} index 交易日索引位置
  * @param {*} stockData 日线数据
  */
-function checkStoplossTransaction(stock, tradeDate, index, stockData, options) {
+function checkStoplossTransaction(stockInfo, stock, index, stockData, options) {
     if (_.isEmpty(stock) || stock.count <= 0) return;
     let currentData = stockData[index];
     // 止损最大损失比例
@@ -18,10 +17,11 @@ function checkStoplossTransaction(stock, tradeDate, index, stockData, options) {
 
     // 这里检查纯粹的百分比止损
     let lossPrice = stock.price * (1 - S);
+    let tradeDate = currentData.trade_date;
     if (currentData.low <= lossPrice) {
         // 当日价格范围达到止损值
         return engine.createSellTransaction(
-            stock.info,
+            stockInfo,
             tradeDate,
             index,
             stock.count,

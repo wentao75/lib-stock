@@ -6,20 +6,14 @@ const debug = debugpkg("mmb");
 
 /**
  * 检查买入条件
+ * @param {*} stockInfo 股票信息
  * @param {double} balance 账户余额
  * @param {*} tradeDate 交易日期
  * @param {int} index 交易日数据索引位置
  * @param {*} stockData 数据
  * @param {*} options 算法参数
  */
-function checkMMBBuyTransaction(
-    balance,
-    stockInfo,
-    tradeDate,
-    index,
-    stockData,
-    options
-) {
+function checkMMBBuyTransaction(stockInfo, balance, index, stockData, options) {
     if (balance <= 0) return;
     // debug(`买入检查: ${balance}, ${tradeDate}, %o, ${index}`, stockData);
 
@@ -44,19 +38,20 @@ function checkMMBBuyTransaction(
     let currentData = stockData[index];
     // console.log(`跟踪信息： ${stockData.length}, ${index}`, currentData);
     let targetPrice = currentData.open + moment * P;
+    let tradeDate = stockData[index].trade_date;
 
     debug(
-        `买入条件检查${tradeDate.format("YYYYMMDD")}: ${targetPrice.toFixed(
-            2
-        )}=${currentData.open}+${moment.toFixed(2)}*${P} [o: ${
+        `买入条件检查${tradeDate}: ${targetPrice.toFixed(2)}=${
             currentData.open
-        }, h: ${currentData.high}, l: ${currentData.low}, c: ${
-            currentData.close
-        }, d: ${currentData.trade_date}]`
+        }+${moment.toFixed(2)}*${P} [o: ${currentData.open}, h: ${
+            currentData.high
+        }, l: ${currentData.low}, c: ${currentData.close}, d: ${
+            currentData.trade_date
+        }]`
     );
     if (currentData.high >= targetPrice && currentData.open <= targetPrice) {
         // 执行买入交易
-        debug(`符合条件：${tradeDate.format("YYYYMMDD")}`);
+        debug(`符合条件：${tradeDate}`);
         return engine.createBuyTransaction(
             stockInfo,
             tradeDate,
@@ -74,13 +69,13 @@ function checkMMBBuyTransaction(
 /**
  * 检查是否可以生成卖出交易，如果可以卖出，产生卖出交易记录
  *
+ * @param {*} info 股票信息
  * @param {*} stock 持仓信息
- * @param {*} tradeDate 交易日
  * @param {*} index 今日数据索引位置
  * @param {*} stockData 日线数据
  * @param {*} options 算法参数
  */
-function checkMMBSellTransaction(stock, tradeDate, index, stockData, options) {
+function checkMMBSellTransaction(stockInfo, stock, index, stockData, options) {
     if (_.isEmpty(stock) || stock.count <= 0) return;
 
     // 检查是否符合动能突破买入条件
@@ -88,9 +83,8 @@ function checkMMBSellTransaction(stock, tradeDate, index, stockData, options) {
         !options.nommbsell &&
         !_.isEmpty(
             checkMMBBuyTransaction(
+                stockInfo,
                 options.initBalance,
-                stock.info,
-                tradeDate,
                 index,
                 stockData,
                 options
@@ -102,6 +96,7 @@ function checkMMBSellTransaction(stock, tradeDate, index, stockData, options) {
     }
 
     let currentData = stockData[index];
+    let tradeDate = currentData.trade_date;
 
     // 目前有持仓，检查是否达到盈利卖出条件
     if (!options.nommb1 && currentData.open > stock.price) {
@@ -112,7 +107,7 @@ function checkMMBSellTransaction(stock, tradeDate, index, stockData, options) {
             )} (> ${stock.price.toFixed(2)})`
         );
         return engine.createSellTransaction(
-            stock.info,
+            stockInfo,
             tradeDate,
             index,
             stock.count,
@@ -150,7 +145,7 @@ function checkMMBSellTransaction(stock, tradeDate, index, stockData, options) {
         if (targetPrice <= currentData.open && targetPrice >= currentData.low) {
             // 执行波动卖出
             return engine.createSellTransaction(
-                stock.info,
+                stockInfo,
                 tradeDate,
                 index,
                 stock.count,

@@ -52,6 +52,7 @@ async function simulate(options) {
         );
         // 准备资金账户数据
         let capitalData = {
+            info: stockItem,
             balance: options.initBalance, // 初始资金
             stock: { info: null, count: 0, price: 0 }, // 持有股票信息
             transactions: [], // 交易记录 {date: , count: 交易数量, price: 交易价格, total: 总金额, amount: 总价, fee: 交易费用, memo: 备注信息}
@@ -77,7 +78,7 @@ async function simulate(options) {
             calculatePrevAdjPrice(stockData);
 
             // 开始按照日期执行交易算法
-            let startDate = moment("20190101", "YYYYMMDD");
+            let startDate = moment(options.startDate, "YYYYMMDD");
             let currentDate = null;
             for (let index = 0; index < stockData.data.length; index++) {
                 let daily = stockData.data[index];
@@ -94,10 +95,8 @@ async function simulate(options) {
                 // this.log(`%o`, engine);
                 let trans = await engine.executeTransaction(
                     mmb,
-                    currentDate,
                     index,
                     stockData.data,
-                    stockItem,
                     capitalData,
                     options
                 );

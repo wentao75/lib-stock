@@ -24,10 +24,9 @@ const debug = debugpkg("trans");
  */
 async function executeTransaction(
     tradeMethod,
-    tradeDate,
+    // tradeDate,
     index,
     stockData,
-    stockInfo,
     capitalData,
     options
 ) {
@@ -35,17 +34,20 @@ async function executeTransaction(
     // 首先检查卖出
     // 所有算法首先检查并处理止损
     // 检查是否需要止损
+    let tradeDate = stockData[index].trade_date;
+    let stockInfo = capitalData.info;
     if (options.stoploss) {
         translog = options.stoploss.checkStoplossTransaction(
+            stockInfo,
             capitalData && capitalData.stock,
-            tradeDate,
+            // tradeDate,
             index,
             stockData,
             options
         );
         if (
             executeCapitalSettlement(
-                tradeDate,
+                // tradeDate,
                 stockInfo,
                 translog,
                 capitalData,
@@ -53,7 +55,7 @@ async function executeTransaction(
             )
         ) {
             debug(
-                `卖出止损：${tradeDate.format("YYYYMMDD")}，价格：${formatFxstr(
+                `卖出止损：${tradeDate}，价格：${formatFxstr(
                     translog.price
                 )}元，数量：${
                     translog.count / 100
@@ -71,15 +73,16 @@ async function executeTransaction(
 
     // debug("执行卖出检查");
     translog = tradeMethod.checkSellTransaction(
+        stockInfo,
         capitalData && capitalData.stock,
-        tradeDate,
+        // tradeDate,
         index,
         stockData,
         options
     );
     if (
         executeCapitalSettlement(
-            tradeDate,
+            // tradeDate,
             stockInfo,
             translog,
             capitalData,
@@ -87,9 +90,9 @@ async function executeTransaction(
         )
     ) {
         debug(
-            `卖出交易：${tradeDate.format(
-                "YYYYMMDD"
-            )}，价格：${translog.price.toFixed(2)}元，数量：${
+            `卖出交易：${tradeDate}，价格：${translog.price.toFixed(
+                2
+            )}元，数量：${
                 translog.count / 100
             }手，总价：${translog.total.toFixed(
                 2
@@ -109,9 +112,9 @@ async function executeTransaction(
     let cash = capitalData.balance;
     if (options.fixCash) cash = options.initBalance;
     translog = tradeMethod.checkBuyTransaction(
-        cash,
         stockInfo,
-        tradeDate,
+        cash,
+        // tradeDate,
         index,
         stockData,
         options
@@ -119,7 +122,7 @@ async function executeTransaction(
     // debug(`买入结果：%o`, translog);
     if (
         executeCapitalSettlement(
-            tradeDate,
+            // tradeDate,
             stockInfo,
             translog,
             capitalData,
@@ -127,9 +130,9 @@ async function executeTransaction(
         )
     ) {
         debug(
-            `买入交易：${tradeDate.format(
-                "YYYYMMDD"
-            )}，价格：${translog.price.toFixed(2)}元，数量：${
+            `买入交易：${tradeDate}，价格：${translog.price.toFixed(
+                2
+            )}元，数量：${
                 translog.count / 100
             }手，总价：${translog.total.toFixed(
                 2
@@ -147,13 +150,13 @@ async function executeTransaction(
 
 /**
  * 根据交易记录完成账户清算
- * @param {*} tradeDate 交易日期
  * @param {*} stockInfo 股票信息
  * @param {*} translog 交易记录
  * @param {*} capitalData 账户数据
+ * @param {*} options 配置参数
  */
 function executeCapitalSettlement(
-    tradeDate,
+    // tradeDate,
     stockInfo,
     translog,
     capitalData,
@@ -182,7 +185,7 @@ function executeCapitalSettlement(
     // 如果当前买入，stock中放置持股信息和买入交易日志，只有卖出发生时才合并生成一条交易记录，包含两个部分
     if (translog.type === "buy") {
         capitalData.stock = {
-            info: stockInfo,
+            //info: stockInfo,
             count: translog.count,
             price: translog.price,
             buy: translog,
@@ -198,7 +201,7 @@ function executeCapitalSettlement(
             sell: translog,
         };
         capitalData.stock = {
-            info: null,
+            //info: null,
             count: 0,
             price: 0,
         };
@@ -230,7 +233,7 @@ function createSellTransaction(
     let total = calculateTransactionFee(false, stockInfo, count, price);
     // 创建卖出交易记录
     return {
-        date: tradeDate.format("YYYYMMDD"),
+        date: tradeDate,
         dateIndex: tradeDateIndex,
         type: "sell",
         count,
@@ -275,7 +278,7 @@ function createBuyTransaction(
     }
     // 创建买入交易记录
     return {
-        date: tradeDate.format("YYYYMMDD"),
+        date: tradeDate,
         dateIndex: tradeDateIndex,
         type: "buy",
         count: count,
@@ -367,7 +370,7 @@ function parseCapital(capitalData) {
         let selltype = selltypes[log.sell.methodType];
         if (!selltype) {
             selltypes[log.sell.methodType] = {
-                times: 1,
+                times: 0,
                 win_times: 0,
                 loss_times: 0,
             };
@@ -485,9 +488,9 @@ function logCapitalReport(log, capitalData) {
             `  账户价值 ${formatFxstr(
                 capitalData.balance +
                     capitalData.stock.count * capitalData.stock.price
-            )}元  【余额 ${formatFxstr(capitalData.balance)}元, 持股：${
-                capitalData.stock.info.name
-            } ${formatFxstr(
+            )}元  【余额 ${formatFxstr(
+                capitalData.balance
+            )}元, 持股: ${formatFxstr(
                 capitalData.stock.count * capitalData.stock.price
             )}元】`
         );
