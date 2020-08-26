@@ -4,6 +4,8 @@ import engine from "./transaction-engine";
 import debugpkg from "debug";
 const debug = debugpkg("mmb");
 
+const OPTIONS_NAME = "mmb";
+
 /**
  * 检查买入条件
  * @param {*} stockInfo 股票信息
@@ -17,16 +19,17 @@ function checkMMBBuyTransaction(stockInfo, balance, index, stockData, options) {
     if (balance <= 0) return;
     // debug(`买入检查: ${balance}, ${tradeDate}, %o, ${index}`, stockData);
 
+    let mmboptions = options && options[OPTIONS_NAME];
     // 平均波幅的计算日数
-    let N = (options && options.N) || 1;
+    let N = mmboptions.N;
     // 波幅突破的百分比
-    let P = (options && options.P) || 0.5;
+    let P = mmboptions.P;
 
     let moment = 0;
     for (let i = 0; i < N; i++) {
         if (index - i - 1 >= 0) {
             let tmp = stockData[index - i - 1];
-            if (options.mmbType === "hl") {
+            if (mmboptions.mmbType === "hl") {
                 moment += tmp.high - tmp.low;
             } else {
                 moment += tmp.high - tmp.close;
@@ -97,9 +100,10 @@ function checkMMBSellTransaction(stockInfo, stock, index, stockData, options) {
 
     let currentData = stockData[index];
     let tradeDate = currentData.trade_date;
+    let mmboptions = options && options[OPTIONS_NAME];
 
     // 目前有持仓，检查是否达到盈利卖出条件
-    if (!options.nommb1 && currentData.open > stock.price) {
+    if (!mmboptions.nommb1 && currentData.open > stock.price) {
         // 采用第二天开盘价盈利就卖出的策略
         debug(
             `开盘盈利策略符合：${currentData.open.toFixed(
@@ -117,18 +121,18 @@ function checkMMBSellTransaction(stockInfo, stock, index, stockData, options) {
         );
     }
 
-    if (!options.nommb2) {
+    if (!mmboptions.nommb2) {
         // 平均波幅的计算日数
-        let N = (options && options.N) || 1;
+        let N = mmboptions.N;
         // 止损使用的波幅下降百分比
-        let L = (options && options.L) || 0.5;
+        let L = mmboptions.L;
         // 有持仓，检查是否达到卖出条件
         // 第一个卖出条件是买入后按照买入价格及波动数据的反向百分比设置
         let moment = 0;
         for (let i = 0; i < N; i++) {
             if (index - i - 1 >= 0) {
                 let tmp = stockData[index - i - 1];
-                if (options.mmbType === "hl") {
+                if (mmboptions.mmbType === "hl") {
                     moment += tmp.high - tmp.low;
                 } else {
                     moment += tmp.high - tmp.close;
@@ -138,10 +142,6 @@ function checkMMBSellTransaction(stockInfo, stock, index, stockData, options) {
         moment = moment / N;
 
         let targetPrice = currentData.open - moment * L;
-        // let targetPrice2 = stock.price - moment * L;
-        // let targetPrice =
-        //     targetPrice1 >= targetPrice2 ? targetPrice1 : targetPrice2;
-
         if (targetPrice <= currentData.open && targetPrice >= currentData.low) {
             // 执行波动卖出
             return engine.createSellTransaction(
@@ -160,7 +160,8 @@ function checkMMBSellTransaction(stockInfo, stock, index, stockData, options) {
 }
 
 let mmb = {
-    name: "MMB",
+    name: "MMB(动能穿透)",
+    label: "mmb",
     description: "动能穿透",
     methodTyps: {
         mmb: "动能突破买入",

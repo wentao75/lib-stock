@@ -5,4 +5,9 @@ import stoploss from "./stoploss";
 import engine from "./transaction-engine";
 import { formatFxstr } from "./util";
 
-export { simulate, mmb, stoploss, engine, formatFxstr };
+const rules = {
+    mmb,
+    stoploss,
+};
+
+export { simulate, engine, rules, formatFxstr };

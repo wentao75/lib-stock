@@ -11,7 +11,7 @@ import debugpkg from "debug";
 // import { formatFxstr } from "./util";
 
 // import stoploss from "./stoploss";
-import mmb from "./momentum-breakthrough";
+// import mmb from "./momentum-breakthrough";
 import engine from "./transaction-engine";
 
 const log = console.log;
@@ -53,9 +53,11 @@ async function simulate(options) {
         // 准备资金账户数据
         let capitalData = {
             info: stockItem,
-            balance: options.initBalance, // 初始资金
-            stock: { info: null, count: 0, price: 0 }, // 持有股票信息
-            transactions: [], // 交易记录 {date: , count: 交易数量, price: 交易价格, total: 总金额, amount: 总价, fee: 交易费用, memo: 备注信息}
+            balance: options.fixCash ? 0 : options.initBalance, // 初始资金
+            stocks: [], // 持有的股票信息，每次买入单独一笔记录，分别进行处理，结构{ count: 0, price: 0, buy: transaction }, // 持有股票信息
+            transactions: [], // 交易记录 {tradeDate: 完成日期, profit: 利润, income: 收入, buy: transaction, sell: transaction}
+            //transaction { date: , count: 交易数量, price: 交易价格, total: 总金额, amount: 总价, fee: 交易费用, memo: 备注信息 }
+            _transeq: 0, // 当前交易序号，获取后要自己增加，对应一次股票的买卖使用同一个序号
         };
         if (stockData) {
             log(
@@ -95,8 +97,8 @@ async function simulate(options) {
                 }
                 currentDate = tradeDate;
                 // this.log(`%o`, engine);
-                let trans = await engine.executeTransaction(
-                    mmb,
+                // let trans =
+                await engine.executeTransaction(
                     index,
                     stockData.data,
                     capitalData,
