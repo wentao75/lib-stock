@@ -1,8 +1,8 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('@wt/lib-wtda-query'), require('moment'), require('lodash'), require('debug')) :
-    typeof define === 'function' && define.amd ? define(['exports', '@wt/lib-wtda-query', 'moment', 'lodash', 'debug'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global['@wt/lib-stock'] = {}, global.libWtdaQuery, global.moment, global._, global.debugpkg));
-}(this, (function (exports, libWtdaQuery, moment, _, debugpkg) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('@wt/lib-wtda-query'), require('moment'), require('lodash'), require('debug'), require('console-table-printer')) :
+    typeof define === 'function' && define.amd ? define(['exports', '@wt/lib-wtda-query', 'moment', 'lodash', 'debug', 'console-table-printer'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global['@wt/lib-stock'] = {}, global.libWtdaQuery, global.moment, global._, global.debugpkg, global.consoleTablePrinter));
+}(this, (function (exports, libWtdaQuery, moment, _, debugpkg, consoleTablePrinter) { 'use strict';
 
     function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
@@ -139,7 +139,7 @@
 
         let settledlog = {
           transeq: stock.transeq,
-          tradeDate: translog.tradeDate,
+          tradeDate: translog.date,
           profit: stock.buy.total + translog.total,
           income: translog.count * translog.price - stock.count * stock.price,
           buy: stock.buy,
@@ -534,63 +534,87 @@
       //      average(平均交易规模), max_loss（最大亏损），profit(利润)
 
       let results = [{
+        day: "Total",
         count: 0,
+        count_win: 0,
+        count_loss: 0,
         win_ratio: 0,
         win: 0,
         loss_ratio: 0,
         loss: 0,
         ratio_winloss: 0,
         average: 0,
+        max_win: 0,
         max_loss: 0,
         profit: 0
       }, {
+        day: "Monday",
         count: 0,
+        count_win: 0,
+        count_loss: 0,
         win_ratio: 0,
         win: 0,
         loss_ratio: 0,
         loss: 0,
         ratio_winloss: 0,
         average: 0,
+        max_win: 0,
         max_loss: 0,
         profit: 0
       }, {
+        day: "Tuesday",
         count: 0,
+        count_win: 0,
+        count_loss: 0,
         win_ratio: 0,
         win: 0,
         loss_ratio: 0,
         loss: 0,
         ratio_winloss: 0,
         average: 0,
+        max_win: 0,
         max_loss: 0,
         profit: 0
       }, {
+        day: "Wednesday",
         count: 0,
+        count_win: 0,
+        count_loss: 0,
         win_ratio: 0,
         win: 0,
         loss_ratio: 0,
         loss: 0,
         ratio_winloss: 0,
         average: 0,
+        max_win: 0,
         max_loss: 0,
         profit: 0
       }, {
+        day: "Thursday",
         count: 0,
+        count_win: 0,
+        count_loss: 0,
         win_ratio: 0,
         win: 0,
         loss_ratio: 0,
         loss: 0,
         ratio_winloss: 0,
         average: 0,
+        max_win: 0,
         max_loss: 0,
         profit: 0
       }, {
+        day: "Friday",
         count: 0,
+        count_win: 0,
+        count_loss: 0,
         win_ratio: 0,
         win: 0,
         loss_ratio: 0,
         loss: 0,
         ratio_winloss: 0,
         average: 0,
+        max_win: 0,
         max_loss: 0,
         profit: 0
       }];
@@ -607,8 +631,8 @@
           continue;
         }
 
-        let days = [0, day];
-        console.log(`%o`, trans); // console.log(
+        let days = [0, day]; // console.log(`%o`, days);
+        // console.log(
         //     `%o, ${buy.tradeDate}, ${date}, ${day}, %o %o`,
         //     trans,
         //     days,
@@ -616,18 +640,20 @@
         // );
 
         for (let index of days) {
-          results[index].count++;
-          results[index].profit += trans.profit;
+          let res = results[index];
+          res.count++;
+          res.profit += trans.profit;
 
           if (trans.profit >= 0) {
-            results[index].count_win++;
-            results[index].win += trans.profit;
-            if (results[index].max_win < trans.profit) results[index].max_win = trans.profit;
+            res.count_win++;
+            res.win += trans.profit;
+            if (res.max_win < trans.profit) res.max_win = trans.profit;
           } else {
-            results[index].count_loss++;
-            results[index].loss += trans.profit;
-            if (results[index].max_loss > trans.profit) results[index].max_loss = trans.profit;
-          }
+            res.count_loss++;
+            res.loss += trans.profit;
+            if (res.max_loss > trans.profit) res.max_loss = trans.profit;
+          } // console.log(`${index}, %o`, res);
+
         }
       }
 
@@ -644,14 +670,79 @@
     }
 
     function showWorkdayReports(log, transactions) {
-      let reports = parseWorkdayReports(transactions);
-      console.log("%o", reports);
-      log(`
-工作日    交易次数    盈利比例    平均盈利    亏损比例    平均亏损    盈亏比    平均利润    最大亏损    利润`);
+      let reports = parseWorkdayReports(transactions); // console.log("%o", reports);
+      //     let days = ["总计", "周一", "周二", "周三", "周四", "周五"];
+      //     log(`
+      // 工作日    交易次数    盈利比例    平均盈利    亏损比例    平均亏损    盈亏比    平均利润    最大亏损    利润`);
+      //     for (let report of reports) {
+      //         log(
+      //             `${report.day}       ${report.count}          ${(
+      //                 report.win_ratio * 100
+      //             ).toFixed(1)}%    ${report.win.toFixed(2)}    ${(
+      //                 report.loss_ratio * 100
+      //             ).toFixed(1)}%    ${report.loss.toFixed(
+      //                 2
+      //             )}    ${report.ratio_winloss.toFixed(
+      //                 2
+      //             )}    ${report.average.toFixed(2)}    ${report.max_loss.toFixed(
+      //                 2
+      //             )}    ${report.profit.toFixed(2)}`
+      //         );
+      //     }
+      // 采用console-table-printer库打印格式
+
+      const p = new consoleTablePrinter.Table({
+        columns: [{
+          name: "workday",
+          alignment: "center"
+        }, {
+          name: "count",
+          alignment: "right"
+        }, {
+          name: "win ratio",
+          alignment: "right"
+        }, {
+          name: "win/trade",
+          alignment: "right"
+        }, {
+          name: "loss ratio",
+          alignment: "right"
+        }, {
+          name: "loss/trade",
+          alignment: "right"
+        }, {
+          name: "ratio win/loss",
+          alignment: "right"
+        }, {
+          name: "profit/trade",
+          alignment: "right"
+        }, {
+          name: "max loss",
+          alignment: "right"
+        }, {
+          name: "profit",
+          alignment: "right"
+        }]
+      });
 
       for (let report of reports) {
-        log(`          ${report.count}    ${(report.win_ratio * 100).toFixed(1)}%    ${report.win.toFixed(2)}    ${(report.loss_ratio * 100).toFixed(1)}%    ${report.loss.toFixed(2)}    ${report.ratio_winloss.toFixed(2)}    ${report.average.toFixed(2)}    ${report.max_loss.toFixed(2)}    ${report.profit.toFixed(2)}`);
+        p.addRow({
+          workday: report.day,
+          count: report.count,
+          "win ratio": `${(report.win_ratio * 100).toFixed(1)}%`,
+          "win/trade": `${report.win.toFixed(2)}`,
+          "loss ratio": `${(report.loss_ratio * 100).toFixed(1)}%`,
+          "loss/trade": `${report.loss.toFixed(2)}`,
+          "ratio win/loss": `${(-report.ratio_winloss).toFixed(2)}`,
+          "profit/trade": `${report.average.toFixed(2)}`,
+          "max loss": `${report.max_loss.toFixed(2)}`,
+          profit: `${report.profit.toFixed(2)}`
+        }, {
+          color: report.win_ratio > 0.5 ? "red" : "green"
+        });
       }
+
+      p.printTable();
     }
     // {
     //     transeq: stock.transeq,

@@ -10,7 +10,13 @@ import pkg from "./package.json";
 
 export default {
     input: "src/index.js",
-    external: ["lodash", "moment", "debug", "@wt/lib-wtda-query"],
+    external: [
+        "lodash",
+        "moment",
+        "debug",
+        "@wt/lib-wtda-query",
+        "console-table-printer",
+    ],
     plugins: [
         resolve(),
         babel({

@@ -195,7 +195,7 @@ function executeCapitalSettlement(stockInfo, translog, capitalData, options) {
 
         let settledlog = {
             transeq: stock.transeq,
-            tradeDate: translog.tradeDate,
+            tradeDate: translog.date,
             profit: stock.buy.total + translog.total,
             income: translog.count * translog.price - stock.count * stock.price,
             buy: stock.buy,
