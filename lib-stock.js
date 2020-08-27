@@ -14,7 +14,6 @@
       return num.toLocaleString("zh-CN"); //, { style: "currency", currency: "CNY" });
     }
 
-    // const moment = require("moment");
     const debug = debugpkg__default['default']("engine");
     /**
      * 主处理过程
@@ -22,7 +21,8 @@
      * 2. 如果执行完卖出，仍然有持仓，检查配置是否许可买入
      * 3. 如果需要买入，查看设置的买入模型列表，按序执行，如果成交，则直接清算
      *
-     * TODO：主过程可以考虑持有多次买入，这样只要记录相应的总投入即可
+     * 2020.8.26 目前已经支持按照规则，非固定头寸方式下，可以在持仓下仍然买入
+     *           持仓卖出按照每笔单独进行，不合并进行
      *
      * @param {*} index 当前日股票数据索引
      * @param {*} stockData 股票数据信息
@@ -70,75 +70,7 @@
             stockId++;
           }
         }
-      } // if (options.stoploss) {
-      //     debug(`止损检查：${tradeDate}, %o`, stockData[index]);
-      //     translog = options.stoploss.checkStoplossTransaction(
-      //         stockInfo,
-      //         capitalData && capitalData.stock,
-      //         // tradeDate,
-      //         index,
-      //         stockData,
-      //         options
-      //     );
-      //     if (
-      //         executeCapitalSettlement(
-      //             // tradeDate,
-      //             stockInfo,
-      //             translog,
-      //             capitalData,
-      //             options
-      //         )
-      //     ) {
-      //         debug(
-      //             `卖出止损：${tradeDate}，价格：${formatFxstr(
-      //                 translog.price
-      //             )}元，数量：${
-      //                 translog.count / 100
-      //             }手，总价：${translog.total.toFixed(
-      //                 2
-      //             )}元[佣金${translog.commission.toFixed(
-      //                 2
-      //             )}元，过户费${translog.fee.toFixed(
-      //                 2
-      //             )}，印花税${translog.duty.toFixed(2)}元], ${translog.memo}`
-      //         );
-      //         // return translog;
-      //     }
-      // }
-      // debug("执行卖出检查");
-      // translog = tradeMethod.checkSellTransaction(
-      //     stockInfo,
-      //     capitalData && capitalData.stock,
-      //     // tradeDate,
-      //     index,
-      //     stockData,
-      //     options
-      // );
-      // if (
-      //     executeCapitalSettlement(
-      //         // tradeDate,
-      //         stockInfo,
-      //         translog,
-      //         capitalData,
-      //         options
-      //     )
-      // ) {
-      //     debug(
-      //         `卖出交易：${tradeDate}，价格：${translog.price.toFixed(
-      //             2
-      //         )}元，数量：${
-      //             translog.count / 100
-      //         }手，总价：${translog.total.toFixed(
-      //             2
-      //         )}元[佣金${translog.commission.toFixed(
-      //             2
-      //         )}元，过户费${translog.fee.toFixed(
-      //             2
-      //         )}，印花税${translog.duty.toFixed(2)}元], ${translog.memo}`
-      //     );
-      //     // return translog;
-      // }
-      // 如果非固定头寸，则检查是否有持仓，如果有不进行买入
+      } // 如果非固定头寸，则检查是否有持仓，如果有不进行买入
 
 
       if (!options.fixCash && capitalData.stocks.length > 0) return; // if (capitalData && capitalData.stock && capitalData.stock.count > 0) return;
@@ -336,7 +268,7 @@
       };
     }
 
-    function parseCapital(capitalData) {
+    function parseCapitalReports(capitalData) {
       if (___default['default'].isEmpty(capitalData)) return; // 账户信息中主要需分析交易过程，正常都是为一次买入，一次卖出，这样作为一组交易，获得一次盈利结果
 
       let count = capitalData.transactions.length;
@@ -477,7 +409,7 @@
       };
     }
 
-    function logCapitalReport(log, capitalData) {
+    function showCapitalReports(log, capitalData) {
       log(`******************************************************************************************`); // log(
       //     "*                                                                                                                      *"
       // );
@@ -494,7 +426,7 @@
         log(`  账户余额 ${formatFxstr(capitalData.balance)}元`);
       }
 
-      let capitalResult = parseCapital(capitalData); // log(``);
+      let capitalResult = parseCapitalReports(capitalData); // log(``);
 
       log(`  总净利润：${formatFxstr(capitalResult.total_profit)},  收益率 ${(capitalResult.ror * 100).toFixed(2)}%`);
       log(`  毛利润： ${formatFxstr(capitalResult.total_win)},  总亏损：${formatFxstr(capitalResult.total_loss)}`);
@@ -524,7 +456,7 @@
       log("");
     }
 
-    function logTransactions(log, capitalData) {
+    function showTransactions(log, capitalData) {
       log(`  交易日志分析
 ******************************************************************************************`);
 
@@ -541,6 +473,7 @@
 
       log(`******************************************************************************************`);
     } // settledlog = {
+    //     transeq: 交易序号
     //     tradeDate: translog.tradeDate,
     //     profit: capitalData.stock.buy.total + translog.total,
     //     income:
@@ -587,13 +520,171 @@
       createSellTransaction,
       createBuyTransaction,
       calculateTransactionFee,
-      parseCapital,
-      logCapitalReport,
-      logTransactions
+      parseCapitalReports,
+      showCapitalReports,
+      showTransactions
     };
 
+    const debug$1 = debugpkg__default['default']("reports");
+
+    function parseWorkdayReports(transactions) {
+      if (!transactions || transactions.length <= 0) return; // 报告包含5+1行信息，1-5对应周一到周五的信息，0表示汇总
+      // 每行信息包括：count(交易次数), win_ratio(盈利比例)，win(平均盈利金额)，
+      //      loss_ratio(亏损比例) ，loss（平均亏损金额），ratio_winloss(盈利亏损比),
+      //      average(平均交易规模), max_loss（最大亏损），profit(利润)
+
+      let results = [{
+        count: 0,
+        win_ratio: 0,
+        win: 0,
+        loss_ratio: 0,
+        loss: 0,
+        ratio_winloss: 0,
+        average: 0,
+        max_loss: 0,
+        profit: 0
+      }, {
+        count: 0,
+        win_ratio: 0,
+        win: 0,
+        loss_ratio: 0,
+        loss: 0,
+        ratio_winloss: 0,
+        average: 0,
+        max_loss: 0,
+        profit: 0
+      }, {
+        count: 0,
+        win_ratio: 0,
+        win: 0,
+        loss_ratio: 0,
+        loss: 0,
+        ratio_winloss: 0,
+        average: 0,
+        max_loss: 0,
+        profit: 0
+      }, {
+        count: 0,
+        win_ratio: 0,
+        win: 0,
+        loss_ratio: 0,
+        loss: 0,
+        ratio_winloss: 0,
+        average: 0,
+        max_loss: 0,
+        profit: 0
+      }, {
+        count: 0,
+        win_ratio: 0,
+        win: 0,
+        loss_ratio: 0,
+        loss: 0,
+        ratio_winloss: 0,
+        average: 0,
+        max_loss: 0,
+        profit: 0
+      }, {
+        count: 0,
+        win_ratio: 0,
+        win: 0,
+        loss_ratio: 0,
+        loss: 0,
+        ratio_winloss: 0,
+        average: 0,
+        max_loss: 0,
+        profit: 0
+      }];
+
+      for (let trans of transactions) {
+        let buy = trans.buy; // let sell = trans.sell;
+
+        let date = moment__default['default'](buy.date, "YYYYMMDD");
+        let day = date.day();
+
+        if (day < 1 && day > 5) {
+          // 超出了周一～周五的范围，跳过这个日期
+          debug$1(`${buy.tradeDate}交易超出星期范围：${day}, %o`, trans);
+          continue;
+        }
+
+        let days = [0, day];
+        console.log(`%o`, trans); // console.log(
+        //     `%o, ${buy.tradeDate}, ${date}, ${day}, %o %o`,
+        //     trans,
+        //     days,
+        //     results
+        // );
+
+        for (let index of days) {
+          results[index].count++;
+          results[index].profit += trans.profit;
+
+          if (trans.profit >= 0) {
+            results[index].count_win++;
+            results[index].win += trans.profit;
+            if (results[index].max_win < trans.profit) results[index].max_win = trans.profit;
+          } else {
+            results[index].count_loss++;
+            results[index].loss += trans.profit;
+            if (results[index].max_loss > trans.profit) results[index].max_loss = trans.profit;
+          }
+        }
+      }
+
+      for (let res of results) {
+        res.win_ratio = res.count_win / res.count;
+        res.win = res.win / res.count_win;
+        res.loss_ratio = res.count_loss / res.count;
+        res.loss = res.loss / res.count_loss;
+        res.ratio_winloss = res.win / res.loss;
+        res.average = res.profit / res.count;
+      }
+
+      return results;
+    }
+
+    function showWorkdayReports(log, transactions) {
+      let reports = parseWorkdayReports(transactions);
+      console.log("%o", reports);
+      log(`
+工作日    交易次数    盈利比例    平均盈利    亏损比例    平均亏损    盈亏比    平均利润    最大亏损    利润`);
+
+      for (let report of reports) {
+        log(`          ${report.count}    ${(report.win_ratio * 100).toFixed(1)}%    ${report.win.toFixed(2)}    ${(report.loss_ratio * 100).toFixed(1)}%    ${report.loss.toFixed(2)}    ${report.ratio_winloss.toFixed(2)}    ${report.average.toFixed(2)}    ${report.max_loss.toFixed(2)}    ${report.profit.toFixed(2)}`);
+      }
+    }
+    // {
+    //     transeq: stock.transeq,
+    //     tradeDate: translog.tradeDate,
+    //     profit: stock.buy.total + translog.total,
+    //     income: translog.count * translog.price - stock.count * stock.price,
+    //     buy: stock.buy,
+    //     sell: translog,
+    // }
+    // transaction
+    // {
+    //     date: tradeDate,
+    //     dateIndex: tradeDateIndex,
+    //     type: "buy",
+    //     count: count,
+    //     price,
+    //     total: total.total,
+    //     amount: total.amount,
+    //     fee: total.fee,
+    //     commission: total.commission,
+    //     duty: total.duty,
+    //     methodType,
+    //     memo,
+    // }
+
+    var reports = /*#__PURE__*/Object.freeze({
+        __proto__: null,
+        parseWorkdayReports: parseWorkdayReports,
+        showWorkdayReports: showWorkdayReports
+    });
+
     const log = console.log;
-    const debug$1 = debugpkg__default['default']("sim");
+    const debug$2 = debugpkg__default['default']("sim");
 
     async function simulate(options) {
       // 首先根据设置获得列表，列表内容为需要进行算法计算的各个股票
@@ -635,7 +726,7 @@
           transactions: [],
           // 交易记录 {tradeDate: 完成日期, profit: 利润, income: 收入, buy: transaction, sell: transaction}
           //transaction { date: , count: 交易数量, price: 交易价格, total: 总金额, amount: 总价, fee: 交易费用, memo: 备注信息 }
-          _transeq: 0 // 当前交易序号
+          _transeq: 0 // 当前交易序号，获取后要自己增加，对应一次股票的买卖使用同一个序号
 
         };
 
@@ -663,9 +754,9 @@
                 continue;
               }
 
-              debug$1(`找到开始日期，开始执行算法！${index}, ${daily.trade_date}`);
+              debug$2(`找到开始日期，开始执行算法！${index}, ${daily.trade_date}`);
             } else {
-              debug$1(`执行算法！${index}, ${daily.trade_date}`);
+              debug$2(`执行算法！${index}, ${daily.trade_date}`);
             }
 
             currentDate = tradeDate; // this.log(`%o`, engine);
@@ -674,10 +765,14 @@
             await engine.executeTransaction(index, stockData.data, capitalData, options);
           }
 
-          engine.logCapitalReport(log, capitalData);
+          engine.showCapitalReports(log, capitalData);
 
           if (options.showTrans) {
-            engine.logTransactions(log, capitalData);
+            engine.showTransactions(log, capitalData);
+          }
+
+          if (options.showWorkdays) {
+            showWorkdayReports(log, capitalData.transactions);
           }
         } else {
           log(`[${stockItem.ts_code}]${stockItem.name} 没有日线数据，请检查！`);
@@ -736,7 +831,7 @@
       return stockData;
     }
 
-    const debug$2 = debugpkg__default['default']("mmb");
+    const debug$3 = debugpkg__default['default']("mmb");
     const OPTIONS_NAME = "mmb";
     /**
      * 检查买入条件
@@ -775,11 +870,11 @@
 
       let targetPrice = currentData.open + moment * P;
       let tradeDate = stockData[index].trade_date;
-      debug$2(`买入条件检查${tradeDate}: ${targetPrice.toFixed(2)}=${currentData.open}+${moment.toFixed(2)}*${P} [o: ${currentData.open}, h: ${currentData.high}, l: ${currentData.low}, c: ${currentData.close}, d: ${currentData.trade_date}]`);
+      debug$3(`买入条件检查${tradeDate}: ${targetPrice.toFixed(2)}=${currentData.open}+${moment.toFixed(2)}*${P} [o: ${currentData.open}, h: ${currentData.high}, l: ${currentData.low}, c: ${currentData.close}, d: ${currentData.trade_date}]`);
 
       if (currentData.high >= targetPrice && currentData.open <= targetPrice) {
         // 执行买入交易
-        debug$2(`符合条件：${tradeDate}`);
+        debug$3(`符合条件：${tradeDate}`);
         return engine.createBuyTransaction(stockInfo, tradeDate, index, balance, targetPrice, "mmb", `动能突破买入 ${targetPrice.toFixed(2)} (=${currentData.open}+${moment.toFixed(2)}*${(P * 100).toFixed(2)}%)`);
       }
     }
@@ -818,7 +913,7 @@
 
       if (!mmboptions.nommb1 && currentData.open > stock.price) {
         // 采用第二天开盘价盈利就卖出的策略
-        debug$2(`开盘盈利策略符合：${currentData.open.toFixed(2)} (> ${stock.price.toFixed(2)})`);
+        debug$3(`开盘盈利策略符合：${currentData.open.toFixed(2)} (> ${stock.price.toFixed(2)})`);
         return engine.createSellTransaction(stockInfo, tradeDate, index, stock.count, currentData.open, "mmb1", `开盘盈利卖出 ${currentData.open} (> ${stock.price.toFixed(2)})`);
       }
 
@@ -852,6 +947,24 @@
         }
       }
     }
+    /**
+     * 返回参数配置的显示信息
+     * @param {*}} opions 参数配置
+     */
+
+
+    function showOptions(options) {
+      return `
+模型 ${mmb.name}[${mmb.label}] 参数：
+波幅类型 [${options.mmb.mmbType === "hc" ? "最高-收盘" : "最高-最低"}]
+动能平均天数: ${options.mmb.N}
+动能突破买入比例: ${options.mmb.P * 100}%
+动能突破卖出比例: ${options.mmb.L * 100}%
+规则：
+  1. [${options.mmb.nommb1 ? "🚫" : "✅"}] 开盘盈利锁定
+  2. [${options.mmb.nommb2 ? "🚫" : "✅"}] 动能向下突破卖出
+`;
+    }
 
     let mmb = {
       name: "MMB(动能穿透)",
@@ -863,11 +976,12 @@
         mmb2: "动能突破卖出"
       },
       checkBuyTransaction: checkMMBBuyTransaction,
-      checkSellTransaction: checkMMBSellTransaction
+      checkSellTransaction: checkMMBSellTransaction,
+      showOptions
     };
 
     // const _ = require("lodash");
-    const debug$3 = debugpkg__default['default']("stoploss");
+    const debug$4 = debugpkg__default['default']("stoploss");
     const OPTIONS_NAME$1 = "stoploss";
     /**
      * 检查是否需要执行止损
@@ -884,12 +998,24 @@
 
       let tradeDate = currentData.trade_date;
       let lossPrice = stock.price * (1 - S);
-      debug$3(`止损检查${tradeDate}: ${currentData.low}] <= ${lossPrice.toFixed(2)} (=${stock.price.toFixed(2)}*(1-${(S * 100).toFixed(2)}%))`);
+      debug$4(`止损检查${tradeDate}: ${currentData.low}] <= ${lossPrice.toFixed(2)} (=${stock.price.toFixed(2)}*(1-${(S * 100).toFixed(2)}%))`);
 
       if (currentData.low <= lossPrice) {
         // 当日价格范围达到止损值
         return engine.createSellTransaction(stockInfo, tradeDate, index, stock.count, lossPrice, "stoploss", `止损 ${lossPrice.toFixed(2)} (=${stock.price.toFixed(2)}*(1-${S * 100}%))`);
       }
+    }
+    /**
+     * 返回参数配置的显示信息
+     * @param {*}} opions 参数配置
+     */
+
+
+    function showOptions$1(options) {
+      return `
+模型 ${stoploss.name}[${stoploss.label}] 参数：
+止损比例: ${options.stoploss.S * 100}%
+`;
     }
 
     let stoploss = {
@@ -899,17 +1025,96 @@
       methodTypes: {
         stoploss: "止损卖出"
       },
-      checkSellTransaction: checkStoplossTransaction
+      checkSellTransaction: checkStoplossTransaction,
+      showOptions: showOptions$1
+    };
+
+    const debug$5 = debugpkg__default['default']("benchmark");
+    /**
+     * 基准参数，用于测量正常买入卖出情况下的基准效果
+     * 采用的买入策略为开盘买入，第二天收盘卖出；或者止损平仓
+     */
+
+    const RULE_NAME = "benchmark";
+    /**
+     * 检查买入条件
+     * @param {*} stockInfo 股票信息
+     * @param {double} balance 账户余额
+     * @param {int} index 交易日数据索引位置
+     * @param {*} stockData 数据
+     * @param {*} options 算法参数
+     */
+
+    function checkBuyTransaction(stockInfo, balance, index, stockData, options) {
+      if (balance <= 0) return; // debug(`买入检查: ${balance}, ${tradeDate}, %o, ${index}`, stockData);
+      // let bmOptions = options && options[RULE_NAME];
+
+      let currentData = stockData[index]; // console.log(`跟踪信息： ${stockData.length}, ${index}`, currentData);
+
+      let targetPrice = currentData.open;
+      let tradeDate = stockData[index].trade_date;
+      return engine.createBuyTransaction(stockInfo, tradeDate, index, balance, targetPrice, RULE_NAME, `基准买入 ${targetPrice.toFixed(2)}`);
+    }
+    /**
+     * 检查是否可以生成卖出交易，如果可以卖出，产生卖出交易记录
+     *
+     * @param {*} info 股票信息
+     * @param {*} stock 持仓信息
+     * @param {*} index 今日数据索引位置
+     * @param {*} stockData 日线数据
+     * @param {*} options 算法参数
+     */
+
+
+    function checkSellTransaction(stockInfo, stock, index, stockData, options) {
+      if (___default['default'].isEmpty(stock) || stock.count <= 0) return;
+      let currentData = stockData[index];
+      let tradeDate = currentData.trade_date;
+      let bmoptions = options && options[RULE_NAME];
+      let priceType = bmoptions.sellPrice;
+
+      if (priceType === "open") {
+        return engine.createSellTransaction(stockInfo, tradeDate, index, stock.count, currentData.open, priceType, `开盘卖出 ${currentData.open})`);
+      } else if (priceType === "close") {
+        return engine.createSellTransaction(stockInfo, tradeDate, index, stock.count, currentData.open, priceType, `收盘卖出 ${currentData.close}`);
+      }
+    }
+    /**
+     * 返回参数配置的显示信息
+     * @param {*}} opions 参数配置
+     */
+
+
+    function showOptions$2(options) {
+      return `
+模型 ${benchmark.name}[${benchmark.label}] 参数：
+卖出类型: ${options.benchmark.sellPrice}
+`;
+    }
+
+    let benchmark = {
+      name: "基准",
+      label: RULE_NAME,
+      description: "基准测试",
+      methodTyps: {
+        open: "开盘卖出",
+        close: "收盘卖出"
+      },
+      checkBuyTransaction,
+      checkSellTransaction,
+      showOptions: showOptions$2
     };
 
     // const simulate = require("./simulator");
     const rules = {
       mmb,
-      stoploss
+      stoploss,
+      benchmark
     };
 
     exports.engine = engine;
     exports.formatFxstr = formatFxstr;
+    exports.reports = reports;
     exports.rules = rules;
     exports.simulate = simulate;
 

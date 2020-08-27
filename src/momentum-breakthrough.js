@@ -159,6 +159,23 @@ function checkMMBSellTransaction(stockInfo, stock, index, stockData, options) {
     }
 }
 
+/**
+ * 返回参数配置的显示信息
+ * @param {*}} opions 参数配置
+ */
+function showOptions(options) {
+    return `
+模型 ${mmb.name}[${mmb.label}] 参数：
+波幅类型 [${options.mmb.mmbType === "hc" ? "最高-收盘" : "最高-最低"}]
+动能平均天数: ${options.mmb.N}
+动能突破买入比例: ${options.mmb.P * 100}%
+动能突破卖出比例: ${options.mmb.L * 100}%
+规则：
+  1. [${options.mmb.nommb1 ? "🚫" : "✅"}] 开盘盈利锁定
+  2. [${options.mmb.nommb2 ? "🚫" : "✅"}] 动能向下突破卖出
+`;
+}
+
 let mmb = {
     name: "MMB(动能穿透)",
     label: "mmb",
@@ -170,6 +187,7 @@ let mmb = {
     },
     checkBuyTransaction: checkMMBBuyTransaction,
     checkSellTransaction: checkMMBSellTransaction,
+    showOptions,
 };
 
 export default mmb;

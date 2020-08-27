@@ -327,7 +327,7 @@ function calculateTransactionFee(buy, stockInfo, count, price) {
     return { total, amount, commission, fee, duty };
 }
 
-function parseCapital(capitalData) {
+function parseCapitalReports(capitalData) {
     if (_.isEmpty(capitalData)) return;
     // 账户信息中主要需分析交易过程，正常都是为一次买入，一次卖出，这样作为一组交易，获得一次盈利结果
     let count = capitalData.transactions.length;
@@ -477,7 +477,7 @@ function parseCapital(capitalData) {
     };
 }
 
-function logCapitalReport(log, capitalData) {
+function showCapitalReports(log, capitalData) {
     log(
         `******************************************************************************************`
     );
@@ -500,7 +500,7 @@ function logCapitalReport(log, capitalData) {
         log(`  账户余额 ${formatFxstr(capitalData.balance)}元`);
     }
 
-    let capitalResult = parseCapital(capitalData);
+    let capitalResult = parseCapitalReports(capitalData);
     // log(``);
     log(
         `  总净利润：${formatFxstr(capitalResult.total_profit)},  收益率 ${(
@@ -572,7 +572,7 @@ function logCapitalReport(log, capitalData) {
     log("");
 }
 
-function logTransactions(log, capitalData) {
+function showTransactions(log, capitalData) {
     log(`  交易日志分析
 ******************************************************************************************`);
     for (let translog of capitalData.transactions) {
@@ -644,7 +644,7 @@ export default {
     createSellTransaction,
     createBuyTransaction,
     calculateTransactionFee,
-    parseCapital,
-    logCapitalReport,
-    logTransactions,
+    parseCapitalReports,
+    showCapitalReports,
+    showTransactions,
 };

@@ -13,6 +13,7 @@ import debugpkg from "debug";
 // import stoploss from "./stoploss";
 // import mmb from "./momentum-breakthrough";
 import engine from "./transaction-engine";
+import * as reports from "./reports";
 
 const log = console.log;
 const debug = debugpkg("sim");
@@ -106,9 +107,12 @@ async function simulate(options) {
                 );
             }
 
-            engine.logCapitalReport(log, capitalData);
+            engine.showCapitalReports(log, capitalData);
             if (options.showTrans) {
-                engine.logTransactions(log, capitalData);
+                engine.showTransactions(log, capitalData);
+            }
+            if (options.showWorkdays) {
+                reports.showWorkdayReports(log, capitalData.transactions);
             }
         } else {
             log(

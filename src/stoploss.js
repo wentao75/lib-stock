@@ -45,6 +45,17 @@ function checkStoplossTransaction(stockInfo, stock, index, stockData, options) {
     }
 }
 
+/**
+ * 返回参数配置的显示信息
+ * @param {*}} opions 参数配置
+ */
+function showOptions(options) {
+    return `
+模型 ${stoploss.name}[${stoploss.label}] 参数：
+止损比例: ${options.stoploss.S * 100}%
+`;
+}
+
 let stoploss = {
     name: "止损",
     label: "stoploss",
@@ -53,6 +64,7 @@ let stoploss = {
         stoploss: "止损卖出",
     },
     checkSellTransaction: checkStoplossTransaction,
+    showOptions,
 };
 
 export default stoploss;
