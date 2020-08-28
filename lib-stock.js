@@ -749,16 +749,17 @@
 
       for (let report of reports) {
         rows.push({
-          workday: report.day,
+          workday: report.win_ratio > 0.5 && report.profit >= 0 ? CGS.red(report.day) : report.day,
           count: report.count,
-          win_ratio: report.win_ratio >= 0.5 ? CGS.red(`${(report.win_ratio * 100).toFixed(1)}%`) : CGS.green(`${(report.win_ratio * 100).toFixed(1)}%`),
-          win_average: `${report.win.toFixed(2)}`,
-          loss_ratio: `${(report.loss_ratio * 100).toFixed(1)}%`,
-          loss_average: `${report.loss.toFixed(2)}`,
-          ratio_winloss: `${(-report.ratio_winloss).toFixed(2)}`,
-          profit_average: `${report.average.toFixed(2)}`,
-          max_loss: `${report.max_loss.toFixed(2)}`,
-          profit: `${report.profit.toFixed(2)}`
+          win_ratio: report.win_ratio >= 0.5 ? CGS.red(`${(report.win_ratio * 100).toFixed(1)}%`) : `${(report.win_ratio * 100).toFixed(1)}%`,
+          //CGS.green
+          win_average: `${formatFxstr(report.win)}`,
+          loss_ratio: report.loss_ratio >= 0.5 ? CGS.green(`${(report.loss_ratio * 100).toFixed(1)}%`) : `${(report.loss_ratio * 100).toFixed(1)}%`,
+          loss_average: `${formatFxstr(report.loss)}`,
+          ratio_winloss: report.ratio_winloss < -1 ? CGS.cyan(`${(-report.ratio_winloss).toFixed(2)}`) : `${(-report.ratio_winloss).toFixed(2)}`,
+          profit_average: report.average >= 0 ? CGS.red(`${formatFxstr(report.average)}`) : CGS.green(`${formatFxstr(report.average)}`),
+          max_loss: `${formatFxstr(report.max_loss)}`,
+          profit: report.profit >= 0 ? CGS.red(`${report.profit.toFixed(2)}`) : CGS.green(`${report.profit.toFixed(2)}`)
         });
       }
 
@@ -1201,6 +1202,7 @@
 
       let targetPrice = currentData.open;
       let tradeDate = stockData[index].trade_date;
+      debug$5(`基准买入：[${tradeDate} price=${targetPrice} open=${currentData.open} close=${currentData.close}]`);
       return engine.createBuyTransaction(stockInfo, tradeDate, index, balance, targetPrice, RULE_NAME, `基准买入 ${targetPrice.toFixed(2)}`);
     }
     /**
@@ -1222,8 +1224,10 @@
       let priceType = bmoptions.sellPrice;
 
       if (priceType === "open") {
+        debug$5(`基准卖出：[${tradeDate} price=${currentData.open} open=${currentData.open} close=${currentData.close}]`);
         return engine.createSellTransaction(stockInfo, tradeDate, index, stock.count, currentData.open, priceType, `开盘卖出 ${currentData.open})`);
       } else if (priceType === "close") {
+        debug$5(`基准卖出：[${tradeDate} price=${currentData.close} open=${currentData.open} close=${currentData.close}]`);
         return engine.createSellTransaction(stockInfo, tradeDate, index, stock.count, currentData.open, priceType, `收盘卖出 ${currentData.close}`);
       }
     }
@@ -1253,11 +1257,159 @@
       showOptions: showOptions$2
     };
 
+    const debug$6 = debugpkg__default['default']("outsideday");
+    /**
+     * 外包日模式，主要针对买入定义
+     */
+
+    const RULE_NAME$1 = "outsideday";
+    /**
+     * 检查外包日买入条件
+     * 1. 前一天为外包日结构，T-1， T-2两天的价格要求满足，T-1价格范围外包T-2，并且T-1收盘价低于T-2最低价
+     * 2. 今日T日的开盘价低于T-1外包日收盘价以下
+     *
+     * 买入价格定为T-1日收盘价
+     *
+     * @param {*} stockInfo 股票信息
+     * @param {double} balance 账户余额
+     * @param {int} index 交易日数据索引位置
+     * @param {*} stockData 数据
+     * @param {*} options 算法参数
+     */
+
+    function checkBuyTransaction$1(stockInfo, balance, index, stockData, options) {
+      if (balance <= 0) return;
+      if (index < 2) return; // debug(`外包日买入检查: ${balance}, ${tradeDate}, %o, ${index}`, stockData);
+      // let bmOptions = options && options[RULE_NAME];
+
+      let data2 = stockData[index - 2];
+      let data1 = stockData[index - 1];
+      let currentData = stockData[index]; // 外包日条件
+
+      if (data1.high < data2.high || data1.low > data2.low) return; // 外包日收盘低于前一日最低
+
+      if (data1.close > data2.low) return; // 今日开盘低于外包日收盘
+
+      if (currentData.open >= data1.close) return; // console.log(`跟踪信息： ${stockData.length}, ${index}`, currentData);
+
+      let targetPrice = currentData.close; // data1.close;
+
+      let tradeDate = currentData.trade_date;
+      debug$6(`找到外包日模式：
+    [${tradeDate} open=${currentData.open}, close=${currentData.close}] 
+    [${data1.trade_date}: high=${data1.high}, low=${data1.low}, close=${data1.close}]
+    [${data2.trade_date}: high=${data1.high}, low=${data1.low}]
+    `);
+      return engine.createBuyTransaction(stockInfo, tradeDate, index, balance, targetPrice, RULE_NAME$1, `外包日买入 ${targetPrice.toFixed(2)}`);
+    } // /**
+    //  * 检查是否可以生成卖出交易，如果可以卖出，产生卖出交易记录
+    //  *
+    //  * @param {*} info 股票信息
+    //  * @param {*} stock 持仓信息
+    //  * @param {*} index 今日数据索引位置
+    //  * @param {*} stockData 日线数据
+    //  * @param {*} options 算法参数
+    //  */
+    // function checkSellTransaction(stockInfo, stock, index, stockData, options) {
+    //     if (_.isEmpty(stock) || stock.count <= 0) return;
+    //     let currentData = stockData[index];
+    //     let tradeDate = currentData.trade_date;
+    //     let bmoptions = options && options[RULE_NAME];
+    //     let priceType = bmoptions.sellPrice;
+    //     if (priceType === "open") {
+    //         return engine.createSellTransaction(
+    //             stockInfo,
+    //             tradeDate,
+    //             index,
+    //             stock.count,
+    //             currentData.open,
+    //             priceType,
+    //             `开盘卖出 ${currentData.open})`
+    //         );
+    //     } else if (priceType === "close") {
+    //         return engine.createSellTransaction(
+    //             stockInfo,
+    //             tradeDate,
+    //             index,
+    //             stock.count,
+    //             currentData.open,
+    //             priceType,
+    //             `收盘卖出 ${currentData.close}`
+    //         );
+    //     }
+    // }
+
+    /**
+     * 返回参数配置的显示信息
+     * @param {*}} opions 参数配置
+     */
+
+
+    function showOptions$3(options) {
+      return `
+`;
+    }
+
+    let outsideday = {
+      name: "外包日",
+      label: RULE_NAME$1,
+      description: "外包日买入",
+      methodTyps: {},
+      checkBuyTransaction: checkBuyTransaction$1,
+      // checkSellTransaction,
+      showOptions: showOptions$3
+    };
+
+    const debug$7 = debugpkg__default['default']("opensell");
+    const OPTIONS_NAME$2 = "opensell";
+    /**
+     * 开盘盈利卖出
+     *
+     * @param {*} info 股票信息
+     * @param {*} stock 持仓信息
+     * @param {*} index 今日数据索引位置
+     * @param {*} stockData 日线数据
+     * @param {*} options 算法参数
+     */
+
+    function checkSellTransaction$1(stockInfo, stock, index, stockData, options) {
+      if (___default['default'].isEmpty(stock) || stock.count <= 0) return;
+      let currentData = stockData[index];
+      let tradeDate = currentData.trade_date; // 目前有持仓，检查是否达到开盘盈利卖出条件
+
+      if (currentData.open > stock.price) {
+        debug$7(`开盘盈利策略符合：${currentData.open.toFixed(2)} (> ${stock.price.toFixed(2)})`);
+        return engine.createSellTransaction(stockInfo, tradeDate, index, stock.count, currentData.open, OPTIONS_NAME$2, `开盘盈利卖出 ${currentData.open} (> ${stock.price.toFixed(2)})`);
+      }
+    }
+    /**
+     * 返回参数配置的显示信息
+     * @param {*}} opions 参数配置
+     */
+
+
+    function showOptions$4(options) {
+      return `
+`;
+    }
+
+    let opensell = {
+      name: "开盘盈利",
+      label: OPTIONS_NAME$2,
+      description: "开盘盈利卖出",
+      methodTyps: {},
+      // checkBuyTransaction: checkMMBBuyTransaction,
+      checkSellTransaction: checkSellTransaction$1,
+      showOptions: showOptions$4
+    };
+
     // const simulate = require("./simulator");
     const rules = {
       mmb,
       stoploss,
-      benchmark
+      benchmark,
+      outsideday,
+      opensell
     };
 
     exports.engine = engine;

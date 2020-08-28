@@ -1,5 +1,6 @@
 import moment from "moment";
 import CG from "console-grid";
+import { formatFxstr } from "./util";
 import debugpkg from "debug";
 const debug = debugpkg("reports");
 
@@ -199,19 +200,34 @@ function showWorkdayReports(log, transactions) {
     let rows = [];
     for (let report of reports) {
         rows.push({
-            workday: report.day,
+            workday:
+                report.win_ratio > 0.5 && report.profit >= 0
+                    ? CGS.red(report.day)
+                    : report.day,
             count: report.count,
             win_ratio:
                 report.win_ratio >= 0.5
                     ? CGS.red(`${(report.win_ratio * 100).toFixed(1)}%`)
-                    : CGS.green(`${(report.win_ratio * 100).toFixed(1)}%`),
-            win_average: `${report.win.toFixed(2)}`,
-            loss_ratio: `${(report.loss_ratio * 100).toFixed(1)}%`,
-            loss_average: `${report.loss.toFixed(2)}`,
-            ratio_winloss: `${(-report.ratio_winloss).toFixed(2)}`,
-            profit_average: `${report.average.toFixed(2)}`,
-            max_loss: `${report.max_loss.toFixed(2)}`,
-            profit: `${report.profit.toFixed(2)}`,
+                    : `${(report.win_ratio * 100).toFixed(1)}%`, //CGS.green
+            win_average: `${formatFxstr(report.win)}`,
+            loss_ratio:
+                report.loss_ratio >= 0.5
+                    ? CGS.green(`${(report.loss_ratio * 100).toFixed(1)}%`)
+                    : `${(report.loss_ratio * 100).toFixed(1)}%`,
+            loss_average: `${formatFxstr(report.loss)}`,
+            ratio_winloss:
+                report.ratio_winloss < -1
+                    ? CGS.cyan(`${(-report.ratio_winloss).toFixed(2)}`)
+                    : `${(-report.ratio_winloss).toFixed(2)}`,
+            profit_average:
+                report.average >= 0
+                    ? CGS.red(`${formatFxstr(report.average)}`)
+                    : CGS.green(`${formatFxstr(report.average)}`),
+            max_loss: `${formatFxstr(report.max_loss)}`,
+            profit:
+                report.profit >= 0
+                    ? CGS.red(`${report.profit.toFixed(2)}`)
+                    : CGS.green(`${report.profit.toFixed(2)}`),
         });
     }
     let data = {

@@ -28,6 +28,9 @@ function checkBuyTransaction(stockInfo, balance, index, stockData, options) {
     let targetPrice = currentData.open;
     let tradeDate = stockData[index].trade_date;
 
+    debug(
+        `基准买入：[${tradeDate} price=${targetPrice} open=${currentData.open} close=${currentData.close}]`
+    );
     return engine.createBuyTransaction(
         stockInfo,
         tradeDate,
@@ -57,6 +60,9 @@ function checkSellTransaction(stockInfo, stock, index, stockData, options) {
     let priceType = bmoptions.sellPrice;
 
     if (priceType === "open") {
+        debug(
+            `基准卖出：[${tradeDate} price=${currentData.open} open=${currentData.open} close=${currentData.close}]`
+        );
         return engine.createSellTransaction(
             stockInfo,
             tradeDate,
@@ -67,6 +73,9 @@ function checkSellTransaction(stockInfo, stock, index, stockData, options) {
             `开盘卖出 ${currentData.open})`
         );
     } else if (priceType === "close") {
+        debug(
+            `基准卖出：[${tradeDate} price=${currentData.close} open=${currentData.open} close=${currentData.close}]`
+        );
         return engine.createSellTransaction(
             stockInfo,
             tradeDate,
