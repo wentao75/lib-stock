@@ -15,7 +15,7 @@ export default {
         "moment",
         "debug",
         "@wt/lib-wtda-query",
-        "console-table-printer",
+        "console-grid",
     ],
     plugins: [
         resolve(),

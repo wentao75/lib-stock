@@ -1,14 +1,15 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('@wt/lib-wtda-query'), require('moment'), require('lodash'), require('debug'), require('console-table-printer')) :
-    typeof define === 'function' && define.amd ? define(['exports', '@wt/lib-wtda-query', 'moment', 'lodash', 'debug', 'console-table-printer'], factory) :
-    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global['@wt/lib-stock'] = {}, global.libWtdaQuery, global.moment, global._, global.debugpkg, global.consoleTablePrinter));
-}(this, (function (exports, libWtdaQuery, moment, _, debugpkg, consoleTablePrinter) { 'use strict';
+    typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('@wt/lib-wtda-query'), require('moment'), require('lodash'), require('debug'), require('console-grid')) :
+    typeof define === 'function' && define.amd ? define(['exports', '@wt/lib-wtda-query', 'moment', 'lodash', 'debug', 'console-grid'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global['@wt/lib-stock'] = {}, global.libWtdaQuery, global.moment, global._, global.debugpkg, global.CG));
+}(this, (function (exports, libWtdaQuery, moment, _, debugpkg, CG) { 'use strict';
 
     function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
     var moment__default = /*#__PURE__*/_interopDefaultLegacy(moment);
     var ___default = /*#__PURE__*/_interopDefaultLegacy(_);
     var debugpkg__default = /*#__PURE__*/_interopDefaultLegacy(debugpkg);
+    var CG__default = /*#__PURE__*/_interopDefaultLegacy(CG);
 
     function formatFxstr(num) {
       return num.toLocaleString("zh-CN"); //, { style: "currency", currency: "CNY" });
@@ -534,7 +535,7 @@
       //      average(平均交易规模), max_loss（最大亏损），profit(利润)
 
       let results = [{
-        day: "Total",
+        day: "",
         count: 0,
         count_win: 0,
         count_loss: 0,
@@ -548,7 +549,7 @@
         max_loss: 0,
         profit: 0
       }, {
-        day: "Monday",
+        day: "周一",
         count: 0,
         count_win: 0,
         count_loss: 0,
@@ -562,7 +563,7 @@
         max_loss: 0,
         profit: 0
       }, {
-        day: "Tuesday",
+        day: "周二",
         count: 0,
         count_win: 0,
         count_loss: 0,
@@ -576,7 +577,7 @@
         max_loss: 0,
         profit: 0
       }, {
-        day: "Wednesday",
+        day: "周三",
         count: 0,
         count_win: 0,
         count_loss: 0,
@@ -590,7 +591,7 @@
         max_loss: 0,
         profit: 0
       }, {
-        day: "Thursday",
+        day: "周四",
         count: 0,
         count_win: 0,
         count_loss: 0,
@@ -604,7 +605,7 @@
         max_loss: 0,
         profit: 0
       }, {
-        day: "Friday",
+        day: "周五",
         count: 0,
         count_win: 0,
         count_loss: 0,
@@ -689,60 +690,116 @@
       //             )}    ${report.profit.toFixed(2)}`
       //         );
       //     }
-      // 采用console-table-printer库打印格式
+      // 采用console-grid打印格式
 
-      const p = new consoleTablePrinter.Table({
-        columns: [{
-          name: "workday",
-          alignment: "center"
-        }, {
-          name: "count",
-          alignment: "right"
-        }, {
-          name: "win ratio",
-          alignment: "right"
-        }, {
-          name: "win/trade",
-          alignment: "right"
-        }, {
-          name: "loss ratio",
-          alignment: "right"
-        }, {
-          name: "loss/trade",
-          alignment: "right"
-        }, {
-          name: "ratio win/loss",
-          alignment: "right"
-        }, {
-          name: "profit/trade",
-          alignment: "right"
-        }, {
-          name: "max loss",
-          alignment: "right"
-        }, {
-          name: "profit",
-          alignment: "right"
-        }]
-      });
+      let grid = new CG__default['default']();
+      let CGS = CG__default['default'].Style;
+      let columns = [{
+        id: "workday",
+        name: "日期",
+        type: "string",
+        align: "left"
+      }, {
+        id: "count",
+        name: "交易次数",
+        type: "number",
+        align: "right"
+      }, {
+        id: "win_ratio",
+        name: "盈利比例",
+        type: "number",
+        align: "right"
+      }, {
+        id: "win_average",
+        name: "平均盈利",
+        type: "number",
+        align: "right"
+      }, {
+        id: "loss_ratio",
+        name: "亏损比例",
+        type: "number",
+        align: "right"
+      }, {
+        id: "loss_average",
+        name: "平均亏损",
+        type: "number",
+        align: "right"
+      }, {
+        id: "ratio_winloss",
+        name: "盈亏比",
+        type: "number",
+        align: "right"
+      }, {
+        id: "profit_average",
+        name: "平均利润",
+        type: "number",
+        align: "right"
+      }, {
+        id: "max_loss",
+        name: "最大亏损",
+        type: "number",
+        align: "right"
+      }, {
+        id: "profit",
+        name: "利润",
+        type: "number",
+        align: "right"
+      }];
+      let rows = [];
 
       for (let report of reports) {
-        p.addRow({
+        rows.push({
           workday: report.day,
           count: report.count,
-          "win ratio": `${(report.win_ratio * 100).toFixed(1)}%`,
-          "win/trade": `${report.win.toFixed(2)}`,
-          "loss ratio": `${(report.loss_ratio * 100).toFixed(1)}%`,
-          "loss/trade": `${report.loss.toFixed(2)}`,
-          "ratio win/loss": `${(-report.ratio_winloss).toFixed(2)}`,
-          "profit/trade": `${report.average.toFixed(2)}`,
-          "max loss": `${report.max_loss.toFixed(2)}`,
+          win_ratio: report.win_ratio >= 0.5 ? CGS.red(`${(report.win_ratio * 100).toFixed(1)}%`) : CGS.green(`${(report.win_ratio * 100).toFixed(1)}%`),
+          win_average: `${report.win.toFixed(2)}`,
+          loss_ratio: `${(report.loss_ratio * 100).toFixed(1)}%`,
+          loss_average: `${report.loss.toFixed(2)}`,
+          ratio_winloss: `${(-report.ratio_winloss).toFixed(2)}`,
+          profit_average: `${report.average.toFixed(2)}`,
+          max_loss: `${report.max_loss.toFixed(2)}`,
           profit: `${report.profit.toFixed(2)}`
-        }, {
-          color: report.win_ratio > 0.5 ? "red" : "green"
         });
       }
 
-      p.printTable();
+      let data = {
+        option: {},
+        columns,
+        rows
+      };
+      grid.render(data); // 采用console-table-printer库打印格式
+      // const p = new Table({
+      //     columns: [
+      //         { name: "workday", alignment: "center" },
+      //         { name: "count", alignment: "right" },
+      //         { name: "win ratio", alignment: "right" },
+      //         { name: "win/trade", alignment: "right" },
+      //         { name: "loss ratio", alignment: "right" },
+      //         { name: "loss/trade", alignment: "right" },
+      //         { name: "ratio win/loss", alignment: "right" },
+      //         { name: "profit/trade", alignment: "right" },
+      //         { name: "max loss", alignment: "right" },
+      //         { name: "profit", alignment: "right" },
+      //     ],
+      // });
+      // for (let report of reports) {
+      //     p.addRow(
+      //         {
+      //             workday: report.day,
+      //             count: report.count,
+      //             "win ratio": `${(report.win_ratio * 100).toFixed(1)}%`,
+      //             "win/trade": `${report.win.toFixed(2)}`,
+      //             "loss ratio": `${(report.loss_ratio * 100).toFixed(1)}%`,
+      //             "loss/trade": `${report.loss.toFixed(2)}`,
+      //             "ratio win/loss": `${(-report.ratio_winloss).toFixed(2)}`,
+      //             "profit/trade": `${report.average.toFixed(2)}`,
+      //             "max loss": `${report.max_loss.toFixed(2)}`,
+      //             profit: `${report.profit.toFixed(2)}`,
+      //         },
+      //         { color: report.win_ratio > 0.5 ? "red" : "green" }
+      //     );
+      // }
+      // p.printTable();
     }
     // {
     //     transeq: stock.transeq,

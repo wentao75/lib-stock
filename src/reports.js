@@ -1,5 +1,5 @@
 import moment from "moment";
-import { Table } from "console-table-printer";
+import CG from "console-grid";
 import debugpkg from "debug";
 const debug = debugpkg("reports");
 
@@ -11,7 +11,7 @@ function parseWorkdayReports(transactions) {
     //      average(平均交易规模), max_loss（最大亏损），profit(利润)
     let results = [
         {
-            day: "Total",
+            day: "",
             count: 0,
             count_win: 0,
             count_loss: 0,
@@ -26,7 +26,7 @@ function parseWorkdayReports(transactions) {
             profit: 0,
         },
         {
-            day: "Monday",
+            day: "周一",
             count: 0,
             count_win: 0,
             count_loss: 0,
@@ -41,7 +41,7 @@ function parseWorkdayReports(transactions) {
             profit: 0,
         },
         {
-            day: "Tuesday",
+            day: "周二",
             count: 0,
             count_win: 0,
             count_loss: 0,
@@ -56,7 +56,7 @@ function parseWorkdayReports(transactions) {
             profit: 0,
         },
         {
-            day: "Wednesday",
+            day: "周三",
             count: 0,
             count_win: 0,
             count_loss: 0,
@@ -71,7 +71,7 @@ function parseWorkdayReports(transactions) {
             profit: 0,
         },
         {
-            day: "Thursday",
+            day: "周四",
             count: 0,
             count_win: 0,
             count_loss: 0,
@@ -86,7 +86,7 @@ function parseWorkdayReports(transactions) {
             profit: 0,
         },
         {
-            day: "Friday",
+            day: "周五",
             count: 0,
             count_win: 0,
             count_loss: 0,
@@ -170,39 +170,90 @@ function showWorkdayReports(log, transactions) {
     //             )}    ${report.profit.toFixed(2)}`
     //         );
     //     }
-    // 采用console-table-printer库打印格式
-    const p = new Table({
-        columns: [
-            { name: "workday", alignment: "center" },
-            { name: "count", alignment: "right" },
-            { name: "win ratio", alignment: "right" },
-            { name: "win/trade", alignment: "right" },
-            { name: "loss ratio", alignment: "right" },
-            { name: "loss/trade", alignment: "right" },
-            { name: "ratio win/loss", alignment: "right" },
-            { name: "profit/trade", alignment: "right" },
-            { name: "max loss", alignment: "right" },
-            { name: "profit", alignment: "right" },
-        ],
-    });
+
+    // 采用console-grid打印格式
+    let grid = new CG();
+    let CGS = CG.Style;
+    let columns = [
+        { id: "workday", name: "日期", type: "string", align: "left" },
+        { id: "count", name: "交易次数", type: "number", align: "right" },
+        { id: "win_ratio", name: "盈利比例", type: "number", align: "right" },
+        { id: "win_average", name: "平均盈利", type: "number", align: "right" },
+        { id: "loss_ratio", name: "亏损比例", type: "number", align: "right" },
+        {
+            id: "loss_average",
+            name: "平均亏损",
+            type: "number",
+            align: "right",
+        },
+        { id: "ratio_winloss", name: "盈亏比", type: "number", align: "right" },
+        {
+            id: "profit_average",
+            name: "平均利润",
+            type: "number",
+            align: "right",
+        },
+        { id: "max_loss", name: "最大亏损", type: "number", align: "right" },
+        { id: "profit", name: "利润", type: "number", align: "right" },
+    ];
+    let rows = [];
     for (let report of reports) {
-        p.addRow(
-            {
-                workday: report.day,
-                count: report.count,
-                "win ratio": `${(report.win_ratio * 100).toFixed(1)}%`,
-                "win/trade": `${report.win.toFixed(2)}`,
-                "loss ratio": `${(report.loss_ratio * 100).toFixed(1)}%`,
-                "loss/trade": `${report.loss.toFixed(2)}`,
-                "ratio win/loss": `${(-report.ratio_winloss).toFixed(2)}`,
-                "profit/trade": `${report.average.toFixed(2)}`,
-                "max loss": `${report.max_loss.toFixed(2)}`,
-                profit: `${report.profit.toFixed(2)}`,
-            },
-            { color: report.win_ratio > 0.5 ? "red" : "green" }
-        );
+        rows.push({
+            workday: report.day,
+            count: report.count,
+            win_ratio:
+                report.win_ratio >= 0.5
+                    ? CGS.red(`${(report.win_ratio * 100).toFixed(1)}%`)
+                    : CGS.green(`${(report.win_ratio * 100).toFixed(1)}%`),
+            win_average: `${report.win.toFixed(2)}`,
+            loss_ratio: `${(report.loss_ratio * 100).toFixed(1)}%`,
+            loss_average: `${report.loss.toFixed(2)}`,
+            ratio_winloss: `${(-report.ratio_winloss).toFixed(2)}`,
+            profit_average: `${report.average.toFixed(2)}`,
+            max_loss: `${report.max_loss.toFixed(2)}`,
+            profit: `${report.profit.toFixed(2)}`,
+        });
     }
-    p.printTable();
+    let data = {
+        option: {},
+        columns,
+        rows,
+    };
+    grid.render(data);
+
+    // 采用console-table-printer库打印格式
+    // const p = new Table({
+    //     columns: [
+    //         { name: "workday", alignment: "center" },
+    //         { name: "count", alignment: "right" },
+    //         { name: "win ratio", alignment: "right" },
+    //         { name: "win/trade", alignment: "right" },
+    //         { name: "loss ratio", alignment: "right" },
+    //         { name: "loss/trade", alignment: "right" },
+    //         { name: "ratio win/loss", alignment: "right" },
+    //         { name: "profit/trade", alignment: "right" },
+    //         { name: "max loss", alignment: "right" },
+    //         { name: "profit", alignment: "right" },
+    //     ],
+    // });
+    // for (let report of reports) {
+    //     p.addRow(
+    //         {
+    //             workday: report.day,
+    //             count: report.count,
+    //             "win ratio": `${(report.win_ratio * 100).toFixed(1)}%`,
+    //             "win/trade": `${report.win.toFixed(2)}`,
+    //             "loss ratio": `${(report.loss_ratio * 100).toFixed(1)}%`,
+    //             "loss/trade": `${report.loss.toFixed(2)}`,
+    //             "ratio win/loss": `${(-report.ratio_winloss).toFixed(2)}`,
+    //             "profit/trade": `${report.average.toFixed(2)}`,
+    //             "max loss": `${report.max_loss.toFixed(2)}`,
+    //             profit: `${report.profit.toFixed(2)}`,
+    //         },
+    //         { color: report.win_ratio > 0.5 ? "red" : "green" }
+    //     );
+    // }
+    // p.printTable();
 }
 
 export { parseWorkdayReports, showWorkdayReports };
