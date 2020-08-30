@@ -3,6 +3,7 @@ import resolve from "@rollup/plugin-node-resolve";
 import babel from "@rollup/plugin-babel";
 import commonjs from "@rollup/plugin-commonjs";
 import pkg from "./package.json";
+import moment from "moment";
 
 // const externalDeps = Object.keys(
 //     Object.assign({}, pkg.dependencies, pkg.peerDependencies)
@@ -33,6 +34,12 @@ export default {
             file: "lib-stock.js",
             format: "umd",
             name: pkg.name,
+            globals: {
+                moment: "moment",
+                lodash: "_",
+                debug: "debugpkg",
+                "console-grid": "CG",
+            },
             sourcemap: true,
         },
         // {

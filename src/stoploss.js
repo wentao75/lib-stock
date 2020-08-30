@@ -2,7 +2,7 @@
 import _ from "lodash";
 // const engine = require("./transaction-engine");
 import engine from "./transaction-engine";
-
+import trans from "./transaction";
 import debugpkg from "debug";
 const debug = debugpkg("stoploss");
 
@@ -31,7 +31,7 @@ function checkStoplossTransaction(stockInfo, stock, index, stockData, options) {
     );
     if (currentData.low <= lossPrice) {
         // 当日价格范围达到止损值
-        return engine.createSellTransaction(
+        return trans.createSellTransaction(
             stockInfo,
             tradeDate,
             index,

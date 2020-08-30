@@ -1,5 +1,6 @@
 import _ from "lodash";
 import engine from "./transaction-engine";
+import trans from "./transaction";
 
 import debugpkg from "debug";
 const debug = debugpkg("opensell");
@@ -28,7 +29,7 @@ function checkSellTransaction(stockInfo, stock, index, stockData, options) {
                 2
             )} (> ${stock.price.toFixed(2)})`
         );
-        return engine.createSellTransaction(
+        return trans.createSellTransaction(
             stockInfo,
             tradeDate,
             index,
@@ -53,7 +54,7 @@ let opensell = {
     name: "开盘盈利",
     label: OPTIONS_NAME,
     description: "开盘盈利卖出",
-    methodTyps: {},
+    methodTypes: {},
     // checkBuyTransaction: checkMMBBuyTransaction,
     checkSellTransaction,
     showOptions,

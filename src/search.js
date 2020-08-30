@@ -10,58 +10,28 @@ import debugpkg from "debug";
 
 import { formatFxstr } from "./util";
 
-// import stoploss from "./stoploss";
-// import mmb from "./momentum-breakthrough";
 import engine from "./transaction-engine";
 import trans from "./transaction";
-import * as reports from "./reports";
 
 const log = console.log;
-const debug = debugpkg("sim");
+const debug = debugpkg("search");
 
 function showOptionsInfo(options) {
-    let buys = "";
-    let usedRules = {};
-    for (let rule of options.rules.buy) {
-        buys += `${rule.name}, `;
-        if (!(rule.label in usedRules)) {
-            usedRules[rule.label] = rule;
-        }
-    }
-
-    let sells = "";
-    for (let rule of options.rules.sell) {
-        sells += `${rule.name}, `;
-        if (!(rule.label in usedRules)) {
-            usedRules[rule.label] = rule;
-        }
-    }
-
-    let rules_desc = "";
-    for (let label in usedRules) {
-        rules_desc += usedRules[label].showOptions(options);
-    }
-
     console.log(
-        `初始资金:        ${formatFxstr(options.initBalance)}元 
-测试交易资金模式:  ${options.fixCash ? "固定头寸" : "累计账户"}
-测试数据周期: ${options.startDate}
+        `测试数据周期: ${options.startDate}
 
-规则：
-买入模型：${buys}
-卖出模型：${sells}
+模型：${options.rule}
 
-${rules_desc}
+${options.rule.showOptions(options)}
 `
     );
 }
 
-async function simulate(options) {
+async function search(options) {
     // 显示目前的配置模拟信息
     showOptionsInfo(options);
 
     // 首先根据设置获得列表，列表内容为需要进行算法计算的各个股票
-    //  TODO: 这里先读取全部的列表
     let stockListData = await readStockList();
     if (!stockListData || !stockListData.data) {
         log(`没有读取到股票列表，无法处理日线数据`);
@@ -71,16 +41,6 @@ async function simulate(options) {
     // 重新过滤可用的
     stockList = await filterStockList(stockList, options);
     log(`算法执行 ${stockList && stockList.length} 条数据`);
-    // data存放股票列表的基本信息：
-    // {
-    //      ts_code: '000001.SZ', symbol: '000001', name: '平安银行',
-    //      market: '主板', exchange: 'SZSE',
-    //      area: '深圳', industry: '银行', fullname: '平安银行股份有限公司',
-    //      enname: 'Ping An Bank Co., Ltd.', curr_type: 'CNY',
-    //      list_status: 'L', list_date: '19910403', delist_date: null, is_hs: 'S'
-    // }
-    // this.log(`%o`, stockList[0]);
-    // 后续的执行为列表的循环计算，这里的算法因为主要是CPU计算类型，只有输入和输出部分有I/O运算，因此不考虑
 
     log("");
     // 下一步开始按照给出的数据循环进行处理
@@ -92,15 +52,7 @@ async function simulate(options) {
             stockDataNames.daily,
             stockItem.ts_code
         );
-        // 准备资金账户数据
-        let capitalData = {
-            info: stockItem,
-            balance: options.fixCash ? 0 : options.initBalance, // 初始资金
-            stocks: [], // 持有的股票信息，每次买入单独一笔记录，分别进行处理，结构{ count: 0, price: 0, buy: transaction }, // 持有股票信息
-            transactions: [], // 交易记录 {tradeDate: 完成日期, profit: 利润, income: 收入, buy: transaction, sell: transaction}
-            //transaction { date: , count: 交易数量, price: 交易价格, total: 总金额, amount: 总价, fee: 交易费用, memo: 备注信息 }
-            _transeq: 0, // 当前交易序号，获取后要自己增加，对应一次股票的买卖使用同一个序号
-        };
+
         if (stockData) {
             log(
                 `[${stockItem.ts_code}]${
@@ -109,11 +61,6 @@ async function simulate(options) {
                     "YYYY-MM-DD HH:mm"
                 )}】`
             );
-            // 日线数据条数 ${
-            //     stockData.data && stockData.data.length
-            // }, 从${stockData.startDate}到${
-            //     stockData.endDate
-            // }，
 
             // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
             stockData = await filterStockData(stockData);
@@ -132,29 +79,37 @@ async function simulate(options) {
                         continue;
                     }
                     debug(
-                        `找到开始日期，开始执行算法！${index}, ${daily.trade_date}`
+                        `找到开始日期，开始查找匹配模型数据！${index}, ${daily.trade_date}`
                     );
                 } else {
                     debug(`执行算法！${index}, ${daily.trade_date}`);
                 }
                 currentDate = tradeDate;
-                // this.log(`%o`, engine);
-                // let trans =
-                await engine.executeTransaction(
+
+                let matched = options.rule.check(
                     index,
                     stockData.data,
-                    capitalData,
                     options
                 );
+                if (matched) {
+                    log(`${matched.memo}`);
+                }
+
+                // await engine.executeTransaction(
+                //     index,
+                //     stockData.data,
+                //     capitalData,
+                //     options
+                // );
             }
 
-            trans.showCapitalReports(log, capitalData);
-            if (options.showTrans) {
-                trans.showTransactions(log, capitalData);
-            }
-            if (options.showWorkdays) {
-                reports.showWorkdayReports(log, capitalData.transactions);
-            }
+            // engine.showCapitalReports(log, capitalData);
+            // if (options.showTrans) {
+            //     engine.showTransactions(log, capitalData);
+            // }
+            // if (options.showWorkdays) {
+            //     reports.showWorkdayReports(log, capitalData.transactions);
+            // }
         } else {
             log(
                 `[${stockItem.ts_code}]${stockItem.name} 没有日线数据，请检查！`
@@ -223,4 +178,4 @@ async function filterStockData(stockData, options) {
     return stockData;
 }
 
-export default simulate;
+export default search;

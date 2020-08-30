@@ -1,5 +1,6 @@
 import _ from "lodash";
 import engine from "./transaction-engine";
+import trans from "./transaction";
 
 import debugpkg from "debug";
 const debug = debugpkg("benchmark");
@@ -31,7 +32,7 @@ function checkBuyTransaction(stockInfo, balance, index, stockData, options) {
     debug(
         `基准买入：[${tradeDate} price=${targetPrice} open=${currentData.open} close=${currentData.close}]`
     );
-    return engine.createBuyTransaction(
+    return trans.createBuyTransaction(
         stockInfo,
         tradeDate,
         index,
@@ -63,7 +64,7 @@ function checkSellTransaction(stockInfo, stock, index, stockData, options) {
         debug(
             `基准卖出：[${tradeDate} price=${currentData.open} open=${currentData.open} close=${currentData.close}]`
         );
-        return engine.createSellTransaction(
+        return trans.createSellTransaction(
             stockInfo,
             tradeDate,
             index,
@@ -76,7 +77,7 @@ function checkSellTransaction(stockInfo, stock, index, stockData, options) {
         debug(
             `基准卖出：[${tradeDate} price=${currentData.close} open=${currentData.open} close=${currentData.close}]`
         );
-        return engine.createSellTransaction(
+        return trans.createSellTransaction(
             stockInfo,
             tradeDate,
             index,
@@ -103,7 +104,7 @@ let benchmark = {
     name: "基准",
     label: RULE_NAME,
     description: "基准测试",
-    methodTyps: {
+    methodTypes: {
         open: "开盘卖出",
         close: "收盘卖出",
     },

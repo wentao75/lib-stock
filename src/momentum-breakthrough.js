@@ -1,5 +1,6 @@
 import _ from "lodash";
 import engine from "./transaction-engine";
+import trans from "./transaction";
 
 import debugpkg from "debug";
 const debug = debugpkg("mmb");
@@ -55,7 +56,7 @@ function checkMMBBuyTransaction(stockInfo, balance, index, stockData, options) {
     if (currentData.high >= targetPrice && currentData.open <= targetPrice) {
         // 执行买入交易
         debug(`符合条件：${tradeDate}`);
-        return engine.createBuyTransaction(
+        return trans.createBuyTransaction(
             stockInfo,
             tradeDate,
             index,
@@ -144,7 +145,7 @@ function checkMMBSellTransaction(stockInfo, stock, index, stockData, options) {
         let targetPrice = currentData.open - moment * L;
         if (targetPrice <= currentData.open && targetPrice >= currentData.low) {
             // 执行波动卖出
-            return engine.createSellTransaction(
+            return trans.createSellTransaction(
                 stockInfo,
                 tradeDate,
                 index,
@@ -180,7 +181,7 @@ let mmb = {
     name: "MMB(动能穿透)",
     label: "mmb",
     description: "动能穿透",
-    methodTyps: {
+    methodTypes: {
         mmb: "动能突破买入",
         mmb1: "开盘盈利卖出",
         mmb2: "动能突破卖出",

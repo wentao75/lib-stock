@@ -1,5 +1,6 @@
 import _ from "lodash";
 import engine from "./transaction-engine";
+import trans from "./transaction";
 
 import debugpkg from "debug";
 const debug = debugpkg("outsideday");
@@ -48,7 +49,7 @@ function checkBuyTransaction(stockInfo, balance, index, stockData, options) {
     [${data1.trade_date}: high=${data1.high}, low=${data1.low}, close=${data1.close}]
     [${data2.trade_date}: high=${data1.high}, low=${data1.low}]
     `);
-    return engine.createBuyTransaction(
+    return trans.createBuyTransaction(
         stockInfo,
         tradeDate,
         index,
@@ -112,7 +113,7 @@ let outsideday = {
     name: "外包日",
     label: RULE_NAME,
     description: "外包日买入",
-    methodTyps: {},
+    methodTypes: {},
     checkBuyTransaction,
     // checkSellTransaction,
     showOptions,
