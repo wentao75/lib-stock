@@ -3,7 +3,6 @@ import resolve from "@rollup/plugin-node-resolve";
 import babel from "@rollup/plugin-babel";
 import commonjs from "@rollup/plugin-commonjs";
 import pkg from "./package.json";
-import moment from "moment";
 
 // const externalDeps = Object.keys(
 //     Object.assign({}, pkg.dependencies, pkg.peerDependencies)
@@ -42,10 +41,11 @@ export default {
             },
             sourcemap: true,
         },
-        // {
-        //     file: "flowcontrol.esm.js",
-        //     format: "es",
-        // },
+        {
+            file: "lib-stocks.esm.js",
+            format: "es",
+            name: pkg.name,
+        },
         // {
         //     file: "dist/flowcontrol.cjs.js",
         //     format: "cjs",

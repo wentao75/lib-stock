@@ -1612,7 +1612,7 @@ ${options.rule.showOptions(options)}
           tradeType: "buy",
           type: "smash1",
           targetPrice: currentData.high,
-          memo: `突出收盘价 [${tradeDate} ${currentData.close} < ${data1.low}，小于前一日最低]，在达到今日最大为反转可买入 ${currentData.high}`
+          memo: `突出收盘买入 [${tradeDate} ${currentData.close} < ${data1.low}，小于前一日最低]，在达到今日最大为反转可买入 ${currentData.high}`
         };
       } else if (type === "smash1" && currentData.close > data1.high) {
         return {
@@ -1621,7 +1621,7 @@ ${options.rule.showOptions(options)}
           tradeType: "sell",
           type: "smash1",
           targetPrice: currentData.low,
-          memo: `突出收盘价 [${tradeDate} ${currentData.close} > ${data1.high}，大于前一日最高]，在达到今日最低为反转可卖出 ${currentData.low}`
+          memo: `突出收盘卖出 [${tradeDate} ${currentData.close} > ${data1.high}，大于前一日最高]，在达到今日最低为反转可卖出 ${currentData.low}`
         };
       } else if (type === "smash2" && currentData.close > data1.close && (currentData.close - currentData.low) / (currentData.high - currentData.low) < 0.25) {
         return {
@@ -1630,7 +1630,7 @@ ${options.rule.showOptions(options)}
           tradeType: "buy",
           type: "smash2",
           targetPrice: currentData.high,
-          memo: `隐藏攻击日 [${tradeDate} ${currentData.close} > ${data1.close}，收盘上涨，且在今日价格下方25% (${currentData.high}, ${currentData.low})]，在达到今日最高可买入 ${currentData.high}`
+          memo: `隐藏攻击买入 [${tradeDate} ${currentData.close} > ${data1.close}，收盘上涨，且在今日价格下方25% (${currentData.high}, ${currentData.low})]，在达到今日最高可买入 ${currentData.high}`
         };
       } else if (type === "smash2" && currentData.close < data1.close && (currentData.close - currentData.low) / (currentData.high - currentData.low) > 0.75) {
         return {
@@ -1639,7 +1639,7 @@ ${options.rule.showOptions(options)}
           tradeType: "sell",
           type: "smash2",
           targetPrice: currentData.low,
-          memo: `隐藏攻击日 [${tradeDate} ${currentData.close} < ${data1.close}，收盘下跌，且在今日价格上方25% (${currentData.high}, ${currentData.low})]，在达到今日最低可卖出 ${currentData.low}`
+          memo: `隐藏攻击卖出 [${tradeDate} ${currentData.close} < ${data1.close}，收盘下跌，且在今日价格上方25% (${currentData.high}, ${currentData.low})]，在达到今日最低可卖出 ${currentData.low}`
         };
       }
     }
@@ -1738,7 +1738,181 @@ ${options.rule.showOptions(options)}
       showOptions: showOptions$5
     };
 
+    function readData(item, prop) {
+      if (___default['default'].isFunction(prop)) {
+        return prop(item);
+      } else if (___default['default'].isString(prop)) {
+        return item && item[prop];
+      }
+
+      return item;
+    }
+
+    function average(array, index, n, prop) {
+      if (index >= 0 && array && Array.isArray(array) && array.length > index && n > 0) {
+        let calcArr = array.slice(index - n + 1, index + 1);
+        return calcArr.map((item, i, all) => {
+          return readData(item, prop);
+        }).reduce((total, item) => {
+          return total + item;
+        }, 0) / n;
+      }
+    }
+
+    function ma(array, n, prop, type) {
+      if (type === "ma") {
+        return sma(array, n, prop);
+      } else {
+        return ema(array, n, prop);
+      }
+    }
+
+    function sma(array, n, prop) {
+      if (array && Array.isArray(array) && array.length > 0 && n > 0) {
+        return array.map((item, i, all) => {
+          if (i < n - 1) {
+            return;
+          } else {
+            return average(all, i, n, prop);
+          }
+        });
+      }
+    }
+
+    function ema(array, n, prop) {
+      if (array && Array.isArray(array) && array.length > 0 && n > 0) {
+        let tmp = 0;
+        return array.map((item, i, all) => {
+          if (i === 0) {
+            tmp = readData(item, prop);
+          } else {
+            tmp = (2 * readData(item, prop) + (n - 1) * tmp) / (n + 1);
+          }
+
+          return tmp;
+        });
+      }
+    }
+    /**
+     * 计算指定数据的TR值
+     * @param {*} data 日线数据
+     */
+
+
+    function tr(data) {
+      if (data) {
+        return Math.max(data.high - data.low, Math.abs(data.high - data.pre_close), Math.abs(data.pre_close - data.low));
+      }
+    }
+
+    var utils = {
+      average,
+      ma,
+      sma,
+      ema,
+      tr
+    };
+
+    /**
+     * 平均价
+     *
+     * 两种类型，
+     * ma，算术平均
+     * ema，指数移动平均
+     */
+    /**
+     * 计算移动平均，返回ma数据
+     * @param {*} tradeData 所有数据
+     * @param {*} options 参数，n 平均周期, type 平均类型
+     */
+
+    function ma$1(tradeData, options) {
+      return utils.ma(tradeData, options && options.n, "close", options && options.type);
+    }
+
+    var MA = {
+      name: "均值",
+      label: "MA",
+      description: "平均收盘价",
+      ma: ma$1
+    };
+
+    /**
+     * ATR 指标，平均真实幅度
+     *
+     * 参数
+     *  n: 表示平均天数
+     *  type：表示均值类型，ma 算术平均，ema 指数移动平均
+     *
+     * TR = max[h-l, abs(h-cp), abs(l-cp)]
+     * cp 表示昨日收盘
+     *
+     * ATR = Sum(TR, n)/n, 表示n天TR的算术平均
+     */
+    /**
+     * 计算ATR指标
+     * @param {Array} tradeData 数据数组
+     * @param {*} options 参数配置，ATR包含n属性
+     */
+
+    function atr(tradeData, options) {
+      return utils.ma(tradeData, options.n, utils.tr, options.type);
+    }
+
+    var ATR = {
+      name: "ATR",
+      label: "平均真实波幅",
+      description: "表示在一定周期内价格的最大波动偏离幅度",
+      atr
+    };
+
+    /**
+     * Keltner Channel，肯特钠通道
+     * 类似于布林带的带状指标，由上中下三条轨道组成
+     *
+     * 中轨：移动平均线，参数n
+     * 上/下轨：移动平均线上下ATR*m距离
+     *
+     * 参数定义：
+     *  n：移动平均天数，默认12，（Squeeze 为20）
+     *  m：通道和中轨之间ATR值的倍数，默认1.5
+     *  type1：价格移动平均类型，ma 简单移动平均，ema 指数移动平均，默认ema
+     *  type2：atr移动平均类型，ma ｜ ema，默认 ma
+     */
+
+    function keltner(tradeData, options) {
+      let ma = MA.ma(tradeData, {
+        n: options.n,
+        type: options.type1
+      });
+      let atr = ATR.atr(tradeData, {
+        n: options.n,
+        type: options.type2
+      });
+      let up = [];
+      let down = [];
+
+      for (let i = 0; i < ma.length; i++) {
+        up[i] = ma[i] + options.m * atr[i];
+        down[i] = ma[i] - options.m * atr[i];
+      }
+
+      return [ma, up, down, atr];
+    }
+
+    var KC = {
+      name: "科特钠通道",
+      label: "KC",
+      description: "科特钠通道",
+      keltner
+    };
+
     // const simulate = require("./simulator");
+    const indicators = {
+      MA,
+      ATR,
+      KC
+    };
     const rules = {
       mmb,
       stoploss,
@@ -1750,6 +1924,7 @@ ${options.rule.showOptions(options)}
 
     exports.engine = engine;
     exports.formatFxstr = formatFxstr;
+    exports.indicators = indicators;
     exports.reports = reports;
     exports.rules = rules;
     exports.search = search;
