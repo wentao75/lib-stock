@@ -14,16 +14,26 @@
 import _ from "lodash";
 import MA from "./ma";
 import ATR from "./atr";
-// import utils from "./utils";
+import utils from "./utils";
 
 function keltner(tradeData, options) {
-    let ma = MA.ma(tradeData, { n: options.n, type: options.type1 });
-    let atr = ATR.atr(tradeData, { n: options.n, type: options.type2 });
+    utils.checkTradeData(tradeData);
+
+    let ma = MA.calculate(tradeData, {
+        n: options.n,
+        type: options.type1,
+        digits: options.digits,
+    });
+    let atr = ATR.calculate(tradeData, {
+        n: options.n,
+        type: options.type2,
+        digits: options.digits,
+    });
     let up = [];
     let down = [];
     for (let i = 0; i < ma.length; i++) {
-        up[i] = ma[i] + options.m * atr[i];
-        down[i] = ma[i] - options.m * atr[i];
+        up[i] = utils.toFixed(ma[i] + options.m * atr[i], options.digits);
+        down[i] = utils.toFixed(ma[i] - options.m * atr[i], options.digits);
     }
 
     return [ma, up, down, atr];
@@ -33,5 +43,5 @@ export default {
     name: "科特钠通道",
     label: "KC",
     description: "科特钠通道",
-    keltner,
+    calculate: keltner,
 };

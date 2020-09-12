@@ -1731,6 +1731,55 @@ let smashday = {
   showOptions: showOptions$5
 };
 
+const ORGANIZED = Symbol("表示数据是否经过检查和整理");
+/**
+ * 对交易数据按照结构进行检查，检查后需要满足
+ * 1. 数组结构
+ * 2. 交易日期按照时间升序排列，0为最早的数据
+ * 3. 如果提供了赋权因子，进行前复权计算
+ * 4. 设置ORGANIZED标记为true
+ *
+ * @param {*} data 交易数据（日线）
+ */
+
+function checkTradeData(data, digits = 2) {
+  if (_.isEmpty(data) || data[ORGANIZED]) return data;
+  if (!_.isArray(data)) return data; // 检查数据排序，如果是降序，则反过来
+
+  if (checkOrder(data)) {
+    data.reverse();
+  }
+
+  if (data[0] && data[0].prevadj_factor) {
+    calculatePrevAdjPrice$2(data, digits);
+  }
+
+  data[ORGANIZED] = true;
+  return data;
+}
+/**
+ * 将日线数据中的历史价位根据复权因子全部处理为前复权结果，方便后续计算
+ *
+ * @param {*} dailyData 日线数据
+ * @param {int} digits 保留位数
+ */
+
+
+function calculatePrevAdjPrice$2(dailyData, digits = 2) {
+  if (dailyData && dailyData.data && dailyData.data.length > 0) {
+    dailyData.data.forEach(item => {
+      if (item.prevadj_factor) {
+        item.open = toFixed(item.open * item.prevadj_factor, digits);
+        item.close = toFixed(item.close * item.prevadj_factor, digits);
+        item.high = toFixed(item.high * item.prevadj_factor, digits);
+        item.low = toFixed(item.low * item.prevadj_factor, digits);
+        item.pre_close = toFixed(item.pre_close * item.prevadj_factor, digits);
+        item.change = toFixed(item.change * item.prevadj_factor, digits);
+      }
+    });
+  }
+}
+
 function readData(item, prop) {
   if (_.isFunction(prop)) {
     return prop(item);
@@ -1741,18 +1790,51 @@ function readData(item, prop) {
   return item;
 }
 
-function average(array, index, n, prop) {
+function toFixed(num, digits = 2) {
+  return Number(num.toFixed(digits));
+}
+
+function checkOrder(array) {
+  return array && _.isArray(array) && array.length > 1 && array[0].trade_date > array[array.length - 1].trade_date;
+}
+
+function average(array, index, n, prop, digits = 2) {
   if (index >= 0 && array && Array.isArray(array) && array.length > index && n > 0) {
-    let calcArr = array.slice(index - n + 1, index + 1);
-    return calcArr.map((item, i, all) => {
-      return readData(item, prop);
-    }).reduce((total, item) => {
-      return total + item;
-    }, 0) / n;
+    let desc = checkOrder(array);
+    let step = desc ? -1 : 1;
+    let lastIndex = index - step * n;
+
+    if (lastIndex < 0 || lastIndex >= array.length) {
+      return;
+    }
+
+    let i = index;
+    let count = 0;
+    let sum = 0;
+
+    while (i >= 0 && i < array.length && count < n) {
+      sum += readData(array[i], prop);
+      i -= step;
+      count++;
+    }
+
+    if (count === n) {
+      return toFixed(sum / n, digits);
+    } // let calcArr = array.slice(index - n + 1, index + 1);
+    // return (
+    //     calcArr
+    //         .map((item, i, all) => {
+    //             return readData(item, prop);
+    //         })
+    //         .reduce((total, item) => {
+    //             return total + item;
+    //         }, 0) / n
+    // );
+
   }
 }
 
-function ma(array, n, prop, type) {
+function ma(array, n, prop, type, digits = 2) {
   if (type === "ma") {
     return sma(array, n, prop);
   } else {
@@ -1760,30 +1842,46 @@ function ma(array, n, prop, type) {
   }
 }
 
-function sma(array, n, prop) {
+function sma(array, n, prop, digits = 2) {
   if (array && Array.isArray(array) && array.length > 0 && n > 0) {
-    return array.map((item, i, all) => {
-      if (i < n - 1) {
-        return;
-      } else {
-        return average(all, i, n, prop);
-      }
-    });
+    let desc = checkOrder(array);
+    let step = desc ? -1 : 1;
+    let i = desc ? array.length - 1 : 0;
+    let index = 0;
+    let ret = [];
+
+    while (i >= 0 && i < array.length) {
+      ret[index] = average(array, i, n, prop, digits);
+      index++;
+      i += step;
+    }
+
+    return ret;
   }
 }
 
-function ema(array, n, prop) {
+function ema(array, n, prop, digits = 2) {
   if (array && Array.isArray(array) && array.length > 0 && n > 0) {
+    let desc = checkOrder(array);
+    let step = desc ? -1 : 1;
+    let i = desc ? array.length - 1 : 0;
+    let index = 0;
+    let ret = [];
     let tmp = 0;
-    return array.map((item, i, all) => {
-      if (i === 0) {
-        tmp = readData(item, prop);
+
+    while (i >= 0 && i < array.length) {
+      if (index === 0) {
+        tmp = readData(array[i], prop);
       } else {
-        tmp = (2 * readData(item, prop) + (n - 1) * tmp) / (n + 1);
+        tmp = (2 * readData(array[i], prop) + (n - 1) * tmp) / (n + 1);
       }
 
-      return tmp;
-    });
+      ret[index] = toFixed(tmp, digits);
+      index++;
+      i += step;
+    }
+
+    return ret;
   }
 }
 /**
@@ -1798,12 +1896,68 @@ function tr(data) {
   }
 }
 
+function ohlc(data) {
+  if (data) {
+    return (data.open + data.high + data.low + data.close) / 4;
+  }
+}
+/**
+ *
+ * @param {Array} array 数据数组
+ * @param {number} n 平均天数
+ * @param {*} prop 数据属性或转换方法
+ * @param {string} type 偏差类型
+ * @param {boolean} desc 数据数组是否降序
+ * @param {number} digits 小数保留位数
+ */
+
+
+function stdev(array, n, prop, digits = 2) {
+  if (array && Array.isArray(array) && array.length > 0 && n > 0) {
+    let desc = checkOrder(array);
+    let step = desc ? -1 : 1;
+    let i = desc ? array.length - 1 : 0;
+    let index = 0;
+    let ret = [];
+
+    while (i >= 0 && i < array.length) {
+      let ma = average(array, i, n, prop, digits);
+      let d;
+
+      if (ma) {
+        let sum = 0;
+        let j = i;
+        let count = 0;
+
+        while (j >= 0 && j < array.length && count < n) {
+          sum += (readData(array[j], prop) - ma) ** 2;
+          count++;
+          j -= step;
+        }
+
+        d = toFixed(Math.sqrt(sum / (n - 1)), digits);
+      }
+
+      ret[index] = d;
+      index++;
+      i += step;
+    }
+
+    return ret;
+  }
+}
+
 var utils = {
   average,
   ma,
   sma,
   ema,
-  tr
+  stdev,
+  tr,
+  ohlc,
+  readData,
+  toFixed,
+  checkTradeData
 };
 
 /**
@@ -1816,18 +1970,19 @@ var utils = {
 /**
  * 计算移动平均，返回ma数据
  * @param {*} tradeData 所有数据
- * @param {*} options 参数，n 平均周期, type 平均类型
+ * @param {*} options 参数，n 平均周期, type 平均类型, digits 保留小数位数
  */
 
 function ma$1(tradeData, options) {
-  return utils.ma(tradeData, options && options.n, "close", options && options.type);
+  utils.checkTradeData(tradeData);
+  return utils.ma(tradeData, options && options.n, "close", options && options.type, options && options.digits);
 }
 
 var MA = {
   name: "均值",
   label: "MA",
   description: "平均收盘价",
-  ma: ma$1
+  calculate: ma$1
 };
 
 /**
@@ -1849,14 +2004,15 @@ var MA = {
  */
 
 function atr(tradeData, options) {
-  return utils.ma(tradeData, options.n, utils.tr, options.type);
+  utils.checkTradeData(tradeData);
+  return utils.ma(tradeData, options.n, utils.tr, options && options.type, options && options.digits);
 }
 
 var ATR = {
   name: "ATR",
   label: "平均真实波幅",
   description: "表示在一定周期内价格的最大波动偏离幅度",
-  atr
+  calculate: atr
 };
 
 /**
@@ -1874,20 +2030,23 @@ var ATR = {
  */
 
 function keltner(tradeData, options) {
-  let ma = MA.ma(tradeData, {
+  utils.checkTradeData(tradeData);
+  let ma = MA.calculate(tradeData, {
     n: options.n,
-    type: options.type1
+    type: options.type1,
+    digits: options.digits
   });
-  let atr = ATR.atr(tradeData, {
+  let atr = ATR.calculate(tradeData, {
     n: options.n,
-    type: options.type2
+    type: options.type2,
+    digits: options.digits
   });
   let up = [];
   let down = [];
 
   for (let i = 0; i < ma.length; i++) {
-    up[i] = ma[i] + options.m * atr[i];
-    down[i] = ma[i] - options.m * atr[i];
+    up[i] = utils.toFixed(ma[i] + options.m * atr[i], options.digits);
+    down[i] = utils.toFixed(ma[i] - options.m * atr[i], options.digits);
   }
 
   return [ma, up, down, atr];
@@ -1897,14 +2056,85 @@ var KC = {
   name: "科特钠通道",
   label: "KC",
   description: "科特钠通道",
-  keltner
+  calculate: keltner
+};
+
+/**
+ * 布林线指标
+ *
+ * 参数：
+ *  n: 移动平均天数
+ *  m: 上下轨到移动平均的标准差倍数
+ *  ma: 移动平均类型，ma | ema
+ *
+ */
+
+function boll(tradeData, options) {
+  utils.checkTradeData(tradeData);
+  let ma = MA.calculate(tradeData, {
+    n: options.n,
+    type: options.ma,
+    digits: options.digits
+  });
+  let stdev = utils.stdev(tradeData, options.n, "close", options.digits);
+  let up = [];
+  let down = [];
+
+  for (let i = 0; i < ma.length; i++) {
+    up[i] = utils.toFixed(ma[i] + options.m * stdev[i], options.digits);
+    down[i] = utils.toFixed(ma[i] - options.m * stdev[i], options.digits);
+  }
+
+  return [ma, up, down, stdev];
+}
+
+var BOLL = {
+  name: "BOLL",
+  label: "布林线",
+  description: "布林线指标",
+  calculate: boll
+};
+
+/**
+ * 基本动量指标
+ *
+ * 参数：
+ *  n: 动量周期
+ *  source: close, ohlc
+ */
+
+function mtm(tradeData, options) {
+  utils.checkTradeData(tradeData);
+
+  if (!_.isEmpty(tradeData) && _.isArray(tradeData) && tradeData.length > 0 && options && options.n > 1) {
+    let source = options && options.source === "ohlc" ? utils.ohlc : "close";
+    let digits = options.digits || 2;
+    let momentum = tradeData.map((item, i, all) => {
+      if (i > options.n) {
+        return utils.toFixed(utils.readData(item, source) - utils.readData(all[i - options.n], source), digits);
+      } else {
+        return 0;
+      }
+    }); // momentum = utils.ma(momentum, 6, undefined, "ma");
+
+    return momentum;
+  }
+}
+
+var MTM = {
+  name: "MTM",
+  label: "动量指标",
+  description: "动量振荡器指标",
+  calculate: mtm
 };
 
 // const simulate = require("./simulator");
 const indicators = {
   MA,
   ATR,
-  KC
+  KC,
+  BOLL,
+  MTM
 };
 const rules = {
   mmb,
@@ -1915,4 +2145,4 @@ const rules = {
   smashday
 };
 
-export { engine, formatFxstr, indicators, reports, rules, search, simulate };
+export { engine, formatFxstr, indicators, reports, rules, search, simulate, utils };

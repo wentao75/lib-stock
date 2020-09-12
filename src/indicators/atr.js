@@ -20,12 +20,20 @@ import utils from "./utils";
  * @param {*} options 参数配置，ATR包含n属性
  */
 function atr(tradeData, options) {
-    return utils.ma(tradeData, options.n, utils.tr, options.type);
+    utils.checkTradeData(tradeData);
+
+    return utils.ma(
+        tradeData,
+        options.n,
+        utils.tr,
+        options && options.type,
+        options && options.digits
+    );
 }
 
 export default {
     name: "ATR",
     label: "平均真实波幅",
     description: "表示在一定周期内价格的最大波动偏离幅度",
-    atr,
+    calculate: atr,
 };

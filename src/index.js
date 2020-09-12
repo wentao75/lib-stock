@@ -14,11 +14,16 @@ import { formatFxstr } from "./util";
 import MA from "./indicators/ma";
 import ATR from "./indicators/atr";
 import KC from "./indicators/keltner-channel";
+import BOLL from "./indicators/boll";
+import MTM from "./indicators/mtm";
+import utils from "./indicators/utils";
 
 const indicators = {
     MA,
     ATR,
     KC,
+    BOLL,
+    MTM,
 };
 
 const rules = {
@@ -30,4 +35,13 @@ const rules = {
     smashday,
 };
 
-export { simulate, search, engine, rules, reports, formatFxstr, indicators };
+export {
+    simulate,
+    search,
+    engine,
+    rules,
+    reports,
+    formatFxstr,
+    indicators,
+    utils,
+};
