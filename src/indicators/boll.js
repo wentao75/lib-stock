@@ -4,6 +4,7 @@
  * 参数：
  *  n: 移动平均天数
  *  m: 上下轨到移动平均的标准差倍数
+ *  source: close | ohlc
  *  ma: 移动平均类型，ma | ema
  *
  */
@@ -16,9 +17,15 @@ function boll(tradeData, options) {
     let ma = MA.calculate(tradeData, {
         n: options.n,
         type: options.ma,
+        source: options.source,
         digits: options.digits,
     });
-    let stdev = utils.stdev(tradeData, options.n, "close", options.digits);
+    let stdev = utils.stdev(
+        tradeData,
+        options.n,
+        (options && options.source) === "ohlc" ? utils.ohlc : "close",
+        options.digits
+    );
 
     let up = [];
     let down = [];

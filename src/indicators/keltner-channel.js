@@ -10,6 +10,7 @@
  *  m：通道和中轨之间ATR值的倍数，默认1.5
  *  type1：价格移动平均类型，ma 简单移动平均，ema 指数移动平均，默认ema
  *  type2：atr移动平均类型，ma ｜ ema，默认 ma
+ *  source: close | ohlc
  */
 import _ from "lodash";
 import MA from "./ma";
@@ -22,6 +23,7 @@ function keltner(tradeData, options) {
     let ma = MA.calculate(tradeData, {
         n: options.n,
         type: options.type1,
+        source: options.source,
         digits: options.digits,
     });
     let atr = ATR.calculate(tradeData, {

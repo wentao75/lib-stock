@@ -1,9 +1,9 @@
 /**
  * 平均价
  *
- * 两种类型，
- * ma，算术平均
- * ema，指数移动平均
+ * 参数
+ *  type：ma，算术平均； ema，指数移动平均
+ *  source: close | ohlc
  */
 import _ from "lodash";
 import utils from "./utils";
@@ -19,7 +19,7 @@ function ma(tradeData, options) {
     return utils.ma(
         tradeData,
         options && options.n,
-        "close",
+        (options && options.source) === "ohlc" ? utils.ohlc : "close",
         options && options.type,
         options && options.digits
     );

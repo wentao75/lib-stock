@@ -1970,9 +1970,9 @@ ${options.rule.showOptions(options)}
     /**
      * 平均价
      *
-     * 两种类型，
-     * ma，算术平均
-     * ema，指数移动平均
+     * 参数
+     *  type：ma，算术平均； ema，指数移动平均
+     *  source: close | ohlc
      */
     /**
      * 计算移动平均，返回ma数据
@@ -1982,7 +1982,7 @@ ${options.rule.showOptions(options)}
 
     function ma$1(tradeData, options) {
       utils.checkTradeData(tradeData);
-      return utils.ma(tradeData, options && options.n, "close", options && options.type, options && options.digits);
+      return utils.ma(tradeData, options && options.n, (options && options.source) === "ohlc" ? utils.ohlc : "close", options && options.type, options && options.digits);
     }
 
     var MA = {
@@ -2034,6 +2034,7 @@ ${options.rule.showOptions(options)}
      *  m：通道和中轨之间ATR值的倍数，默认1.5
      *  type1：价格移动平均类型，ma 简单移动平均，ema 指数移动平均，默认ema
      *  type2：atr移动平均类型，ma ｜ ema，默认 ma
+     *  source: close | ohlc
      */
 
     function keltner(tradeData, options) {
@@ -2041,6 +2042,7 @@ ${options.rule.showOptions(options)}
       let ma = MA.calculate(tradeData, {
         n: options.n,
         type: options.type1,
+        source: options.source,
         digits: options.digits
       });
       let atr = ATR.calculate(tradeData, {
@@ -2072,6 +2074,7 @@ ${options.rule.showOptions(options)}
      * 参数：
      *  n: 移动平均天数
      *  m: 上下轨到移动平均的标准差倍数
+     *  source: close | ohlc
      *  ma: 移动平均类型，ma | ema
      *
      */
@@ -2081,9 +2084,10 @@ ${options.rule.showOptions(options)}
       let ma = MA.calculate(tradeData, {
         n: options.n,
         type: options.ma,
+        source: options.source,
         digits: options.digits
       });
-      let stdev = utils.stdev(tradeData, options.n, "close", options.digits);
+      let stdev = utils.stdev(tradeData, options.n, (options && options.source) === "ohlc" ? utils.ohlc : "close", options.digits);
       let up = [];
       let down = [];
 
