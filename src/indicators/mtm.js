@@ -3,6 +3,7 @@
  *
  * 参数：
  *  n: 动量周期
+ *  m: 平均天数
  *  source: close, ohlc
  */
 
@@ -22,11 +23,18 @@ function mtm(tradeData, options) {
         let source =
             options && options.source === "ohlc" ? utils.ohlc : "close";
         let digits = options.digits || 2;
+        let ma;
+        if (options && options.m && options.m > 1) {
+            ma = utils.ma(tradeData, options.m, source, "ma", digits);
+        } else {
+            ma = utils.ma(tradeData, 1, source, "ma", digits);
+        }
+
         let momentum = tradeData.map((item, i, all) => {
             if (i > options.n) {
                 return utils.toFixed(
-                    utils.readData(item, source) -
-                        utils.readData(all[i - options.n], source),
+                    utils.readData(item, source) - ma[i - options.n],
+                    //utils.readData(all[i - options.n], source),
                     digits
                 );
             } else {

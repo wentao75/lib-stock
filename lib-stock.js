@@ -1749,7 +1749,7 @@ ${options.rule.showOptions(options)}
      * @param {*} data 交易数据（日线）
      */
 
-    function checkTradeData(data, digits = 2) {
+    function checkTradeData(data, digits = 3) {
       if (___default['default'].isEmpty(data) || data[ORGANIZED]) return data;
       if (!___default['default'].isArray(data)) return data; // 检查数据排序，如果是降序，则反过来
 
@@ -1772,9 +1772,9 @@ ${options.rule.showOptions(options)}
      */
 
 
-    function calculatePrevAdjPrice$2(dailyData, digits = 2) {
-      if (dailyData && dailyData.data && dailyData.data.length > 0) {
-        dailyData.data.forEach(item => {
+    function calculatePrevAdjPrice$2(dailyData, digits = 3) {
+      if (dailyData && dailyData.length > 0) {
+        dailyData.forEach(item => {
           if (item.prevadj_factor) {
             item.open = toFixed(item.open * item.prevadj_factor, digits);
             item.close = toFixed(item.close * item.prevadj_factor, digits);
@@ -1797,7 +1797,7 @@ ${options.rule.showOptions(options)}
       return item;
     }
 
-    function toFixed(num, digits = 2) {
+    function toFixed(num, digits = 3) {
       return Number(num.toFixed(digits));
     }
 
@@ -1805,7 +1805,7 @@ ${options.rule.showOptions(options)}
       return array && ___default['default'].isArray(array) && array.length > 1 && array[0].trade_date > array[array.length - 1].trade_date;
     }
 
-    function average(array, index, n, prop, digits = 2) {
+    function average(array, index, n, prop, digits = 3) {
       if (index >= 0 && array && Array.isArray(array) && array.length > index && n > 0) {
         let desc = checkOrder(array);
         let step = desc ? -1 : 1;
@@ -1841,15 +1841,15 @@ ${options.rule.showOptions(options)}
       }
     }
 
-    function ma(array, n, prop, type, digits = 2) {
+    function ma(array, n, prop, type, digits = 3) {
       if (type === "ma") {
-        return sma(array, n, prop);
+        return sma(array, n, prop, digits);
       } else {
-        return ema(array, n, prop);
+        return ema(array, n, prop, digits);
       }
     }
 
-    function sma(array, n, prop, digits = 2) {
+    function sma(array, n, prop, digits = 3) {
       if (array && Array.isArray(array) && array.length > 0 && n > 0) {
         let desc = checkOrder(array);
         let step = desc ? -1 : 1;
@@ -1867,7 +1867,7 @@ ${options.rule.showOptions(options)}
       }
     }
 
-    function ema(array, n, prop, digits = 2) {
+    function ema(array, n, prop, digits = 3) {
       if (array && Array.isArray(array) && array.length > 0 && n > 0) {
         let desc = checkOrder(array);
         let step = desc ? -1 : 1;
@@ -1919,7 +1919,7 @@ ${options.rule.showOptions(options)}
      */
 
 
-    function stdev(array, n, prop, digits = 2) {
+    function stdev(array, n, prop, digits = 3) {
       if (array && Array.isArray(array) && array.length > 0 && n > 0) {
         let desc = checkOrder(array);
         let step = desc ? -1 : 1;
@@ -2111,6 +2111,7 @@ ${options.rule.showOptions(options)}
      *
      * 参数：
      *  n: 动量周期
+     *  m: 平均天数
      *  source: close, ohlc
      */
 
@@ -2120,9 +2121,18 @@ ${options.rule.showOptions(options)}
       if (!___default['default'].isEmpty(tradeData) && ___default['default'].isArray(tradeData) && tradeData.length > 0 && options && options.n > 1) {
         let source = options && options.source === "ohlc" ? utils.ohlc : "close";
         let digits = options.digits || 2;
+        let ma;
+
+        if (options && options.m && options.m > 1) {
+          ma = utils.ma(tradeData, options.m, source, "ma", digits);
+        } else {
+          ma = utils.ma(tradeData, 1, source, "ma", digits);
+        }
+
         let momentum = tradeData.map((item, i, all) => {
           if (i > options.n) {
-            return utils.toFixed(utils.readData(item, source) - utils.readData(all[i - options.n], source), digits);
+            return utils.toFixed(utils.readData(item, source) - ma[i - options.n], //utils.readData(all[i - options.n], source),
+            digits);
           } else {
             return 0;
           }
@@ -2139,13 +2149,161 @@ ${options.rule.showOptions(options)}
       calculate: mtm
     };
 
+    /**
+     * 基本动量指标
+     *
+     * 参数：
+     *  n: 短期平均天数
+     *  m: 长期平均天数
+     *  source: close, ohlc
+     */
+
+    function ao(tradeData, options) {
+      utils.checkTradeData(tradeData);
+
+      if (!___default['default'].isEmpty(tradeData) && ___default['default'].isArray(tradeData) && tradeData.length > 0 && options && options.n >= 1 && options.m >= 1) {
+        let source = options && options.source === "ohlc" ? utils.ohlc : "close";
+        let digits = options.digits || 2;
+        let ma1 = utils.ma(tradeData, options.n, source, "ma", digits);
+        let ma2 = utils.ma(tradeData, options.m, source, "ma", digits);
+        let momentum = tradeData.map((item, i, all) => {
+          if (i >= options.n && i > options.m) {
+            return utils.toFixed(ma1[i] - ma2[i], digits);
+          } else {
+            return 0;
+          }
+        });
+        return momentum;
+      }
+    }
+
+    var AO = {
+      name: "AO",
+      label: "动量震动指标",
+      description: "比尔威廉姆斯动量振荡器指标",
+      calculate: ao
+    };
+
+    /**
+     * 鸡排指标，Squeeze，From Mastering the Trade (3rd Ed)
+     *
+     * 参数：
+     *  source: close | ohlc
+     *  ma: ma | ema
+     *  n: 20
+     *  bm: 2
+     *  km: 1.5
+     *  mt: "AO" || "MTM"
+     *  mn: 5
+     *  mm: 12
+     *
+     *  ditis: 3
+     *
+     */
+    const READY = "READY";
+    const REST = "--";
+    const BUY = "BUY";
+    const SELL = "SELL";
+
+    function squeeze(tradeData, options) {
+      utils.checkTradeData(tradeData);
+      let source = options && options.source || "close";
+      let digits = options && options.digits || 3;
+      let ma = options && options.ma || "ema";
+      let n = options && options.n || 20;
+      let km = options && options.km || 1.5;
+      let bm = options && options.bm || 2;
+      let mt = options && options.mt || "AO";
+      let mn = options && options.mn || 5;
+      let mm = options && options.mm || 12;
+      let kcData = KC.calculate(tradeData, {
+        n,
+        m: km,
+        type1: ma,
+        type2: ma,
+        source,
+        digits
+      });
+      let bollData = BOLL.calculate(tradeData, {
+        n,
+        m: bm,
+        ma,
+        source,
+        digits
+      });
+      let mmData;
+
+      if (mt === "MTM") {
+        mmData = MTM.calculate(tradeData, {
+          n: mn,
+          m: mm,
+          source,
+          digits
+        });
+      } else {
+        mmData = AO.calculate(tradeData, {
+          n: mn,
+          m: mm,
+          source,
+          digits
+        });
+      } // 下面根据轨道情况，判断状态，状态区分如下
+      // 1. boll进kc，启动警告状态：READY
+      // 2. boll出kc，进入交易状态：
+      //   2.1 mm>0，买入（多头）：BUY
+      //   2.2 mm<=0，卖出（空头）：SELL
+      // 3. mm 降低，交易结束：--
+
+
+      let currentState = REST;
+      let states = tradeData.map((item, i, all) => {
+        let ready = bollData && kcData && bollData[1][i] && kcData[1][i] && bollData[1][i] <= kcData[1][i];
+        let mmUp = mmData && mmData[i] && mmData[i] > 0;
+        let nextState = currentState;
+
+        if (currentState === REST) {
+          if (ready) {
+            nextState = READY;
+          }
+        } else if (currentState === READY) {
+          if (!ready) {
+            nextState = mmUp ? BUY : SELL;
+          }
+        } else if (currentState === BUY || currentState === SELL) {
+          // 检查是否出现动能减弱
+          if (mmData && mmData[i] && mmData[i - 1] && (currentState === BUY && mmData[i] < mmData[i - 1] || currentState === SELL && mmData[i] > mmData[i - 1])) {
+            nextState = REST;
+          }
+        }
+
+        currentState = nextState;
+        return nextState;
+      });
+      return [kcData[0], bollData[1], bollData[2], kcData[1], kcData[2], mmData, states];
+    }
+
+    var SQUEEZE = {
+      name: "SQUEEZE",
+      label: "鸡排",
+      description: "挤牌信号器指标",
+      calculate: squeeze,
+      states: {
+        REST,
+        READY,
+        BUY,
+        SELL
+      }
+    };
+
     // const simulate = require("./simulator");
     const indicators = {
       MA,
       ATR,
       KC,
       BOLL,
-      MTM
+      MTM,
+      AO,
+      SQUEEZE
     };
     const rules = {
       mmb,

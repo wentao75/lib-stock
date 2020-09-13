@@ -11,7 +11,7 @@ const ORGANIZED = Symbol("表示数据是否经过检查和整理");
  *
  * @param {*} data 交易数据（日线）
  */
-function checkTradeData(data, digits = 2) {
+function checkTradeData(data, digits = 3) {
     if (_.isEmpty(data) || data[ORGANIZED]) return data;
     if (!_.isArray(data)) return data;
 
@@ -34,9 +34,9 @@ function checkTradeData(data, digits = 2) {
  * @param {*} dailyData 日线数据
  * @param {int} digits 保留位数
  */
-function calculatePrevAdjPrice(dailyData, digits = 2) {
-    if (dailyData && dailyData.data && dailyData.data.length > 0) {
-        dailyData.data.forEach((item) => {
+function calculatePrevAdjPrice(dailyData, digits = 3) {
+    if (dailyData && dailyData.length > 0) {
+        dailyData.forEach((item) => {
             if (item.prevadj_factor) {
                 item.open = toFixed(item.open * item.prevadj_factor, digits);
                 item.close = toFixed(item.close * item.prevadj_factor, digits);
@@ -64,7 +64,7 @@ function readData(item, prop) {
     return item;
 }
 
-function toFixed(num, digits = 2) {
+function toFixed(num, digits = 3) {
     return Number(num.toFixed(digits));
 }
 
@@ -77,7 +77,7 @@ function checkOrder(array) {
     );
 }
 
-function average(array, index, n, prop, digits = 2) {
+function average(array, index, n, prop, digits = 3) {
     if (
         index >= 0 &&
         array &&
@@ -117,15 +117,15 @@ function average(array, index, n, prop, digits = 2) {
     }
 }
 
-function ma(array, n, prop, type, digits = 2) {
+function ma(array, n, prop, type, digits = 3) {
     if (type === "ma") {
-        return sma(array, n, prop);
+        return sma(array, n, prop, digits);
     } else {
-        return ema(array, n, prop);
+        return ema(array, n, prop, digits);
     }
 }
 
-function sma(array, n, prop, digits = 2) {
+function sma(array, n, prop, digits = 3) {
     if (array && Array.isArray(array) && array.length > 0 && n > 0) {
         let desc = checkOrder(array);
         let step = desc ? -1 : 1;
@@ -141,7 +141,7 @@ function sma(array, n, prop, digits = 2) {
     }
 }
 
-function ema(array, n, prop, digits = 2) {
+function ema(array, n, prop, digits = 3) {
     if (array && Array.isArray(array) && array.length > 0 && n > 0) {
         let desc = checkOrder(array);
         let step = desc ? -1 : 1;
@@ -192,7 +192,7 @@ function ohlc(data) {
  * @param {boolean} desc 数据数组是否降序
  * @param {number} digits 小数保留位数
  */
-function stdev(array, n, prop, digits = 2) {
+function stdev(array, n, prop, digits = 3) {
     if (array && Array.isArray(array) && array.length > 0 && n > 0) {
         let desc = checkOrder(array);
         let step = desc ? -1 : 1;

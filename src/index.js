@@ -16,6 +16,8 @@ import ATR from "./indicators/atr";
 import KC from "./indicators/keltner-channel";
 import BOLL from "./indicators/boll";
 import MTM from "./indicators/mtm";
+import AO from "./indicators/ao";
+import SQUEEZE from "./indicators/squeeze";
 import utils from "./indicators/utils";
 
 const indicators = {
@@ -24,6 +26,8 @@ const indicators = {
     KC,
     BOLL,
     MTM,
+    AO,
+    SQUEEZE,
 };
 
 const rules = {
