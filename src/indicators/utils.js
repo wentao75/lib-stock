@@ -183,6 +183,12 @@ function ohlc(data) {
     }
 }
 
+function hl(data) {
+    if (data) {
+        return (data.high + data.low) / 2;
+    }
+}
+
 /**
  *
  * @param {Array} array 数据数组
@@ -231,6 +237,7 @@ export default {
     stdev,
     tr,
     ohlc,
+    hl,
     readData,
     toFixed,
     checkTradeData,

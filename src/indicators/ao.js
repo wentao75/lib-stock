@@ -4,7 +4,7 @@
  * 参数：
  *  n: 短期平均天数
  *  m: 长期平均天数
- *  source: close, ohlc
+ *  source: hl, ohlc
  */
 
 import _ from "lodash";
@@ -22,7 +22,7 @@ function ao(tradeData, options) {
         options.m >= 1
     ) {
         let source =
-            options && options.source === "ohlc" ? utils.ohlc : "close";
+            options && options.source === "ohlc" ? utils.ohlc : utils.hl;
         let digits = options.digits || 2;
 
         let ma1 = utils.ma(tradeData, options.n, source, "ma", digits);

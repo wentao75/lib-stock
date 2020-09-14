@@ -1901,6 +1901,12 @@ function ohlc(data) {
     return (data.open + data.high + data.low + data.close) / 4;
   }
 }
+
+function hl(data) {
+  if (data) {
+    return (data.high + data.low) / 2;
+  }
+}
 /**
  *
  * @param {Array} array 数据数组
@@ -1955,6 +1961,7 @@ var utils = {
   stdev,
   tr,
   ohlc,
+  hl,
   readData,
   toFixed,
   checkTradeData
@@ -2148,14 +2155,14 @@ var MTM = {
  * 参数：
  *  n: 短期平均天数
  *  m: 长期平均天数
- *  source: close, ohlc
+ *  source: hl, ohlc
  */
 
 function ao(tradeData, options) {
   utils.checkTradeData(tradeData);
 
   if (!_.isEmpty(tradeData) && _.isArray(tradeData) && tradeData.length > 0 && options && options.n >= 1 && options.m >= 1) {
-    let source = options && options.source === "ohlc" ? utils.ohlc : "close";
+    let source = options && options.source === "ohlc" ? utils.ohlc : utils.hl;
     let digits = options.digits || 2;
     let ma1 = utils.ma(tradeData, options.n, source, "ma", digits);
     let ma2 = utils.ma(tradeData, options.m, source, "ma", digits);
