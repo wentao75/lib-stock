@@ -10,6 +10,7 @@
  *  mt: "AO" || "MTM"
  *  mn: 5
  *  mm: 12
+ *  mmsource: "hl" | "ohlc"
  *
  *  ditis: 3
  *
@@ -33,11 +34,15 @@ function squeeze(tradeData, options) {
     let digits = (options && options.digits) || 3;
     let ma = (options && options.ma) || "ema";
     let n = (options && options.n) || 20;
+    // kc边界倍数
     let km = (options && options.km) || 1.5;
+    // boll边界倍数
     let bm = (options && options.bm) || 2;
+    // 动量指标参数
     let mt = (options && options.mt) || "AO";
     let mn = (options && options.mn) || 5;
     let mm = (options && options.mm) || 12;
+    let mmsource = (options && options.mmsource) || "hl";
 
     let kcData = KC.calculate(tradeData, {
         n,
@@ -67,7 +72,7 @@ function squeeze(tradeData, options) {
         mmData = AO.calculate(tradeData, {
             n: mn,
             m: mm,
-            source,
+            source: mmsource,
             digits,
         });
     }

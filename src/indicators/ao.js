@@ -23,7 +23,7 @@ function ao(tradeData, options) {
     ) {
         let source =
             options && options.source === "ohlc" ? utils.ohlc : utils.hl;
-        let digits = options.digits || 2;
+        let digits = options.digits || 3;
 
         let ma1 = utils.ma(tradeData, options.n, source, "ma", digits);
         let ma2 = utils.ma(tradeData, options.m, source, "ma", digits);

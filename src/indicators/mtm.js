@@ -22,7 +22,7 @@ function mtm(tradeData, options) {
     ) {
         let source =
             options && options.source === "ohlc" ? utils.ohlc : "close";
-        let digits = options.digits || 2;
+        let digits = options.digits || 3;
         let ma;
         if (options && options.m && options.m > 1) {
             ma = utils.ma(tradeData, options.m, source, "ma", digits);
