@@ -2,12 +2,12 @@
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('@wt/lib-wtda-query'), require('moment'), require('lodash'), require('debug'), require('console-grid')) :
     typeof define === 'function' && define.amd ? define(['exports', '@wt/lib-wtda-query', 'moment', 'lodash', 'debug', 'console-grid'], factory) :
     (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global['@wt/lib-stock'] = {}, global.libWtdaQuery, global.moment, global._, global.debugpkg, global.CG));
-}(this, (function (exports, libWtdaQuery, moment, _, debugpkg, CG) { 'use strict';
+}(this, (function (exports, libWtdaQuery, moment$1, _$1, debugpkg, CG) { 'use strict';
 
     function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
-    var moment__default = /*#__PURE__*/_interopDefaultLegacy(moment);
-    var ___default = /*#__PURE__*/_interopDefaultLegacy(_);
+    var moment__default = /*#__PURE__*/_interopDefaultLegacy(moment$1);
+    var ___default = /*#__PURE__*/_interopDefaultLegacy(_$1);
     var debugpkg__default = /*#__PURE__*/_interopDefaultLegacy(debugpkg);
     var CG__default = /*#__PURE__*/_interopDefaultLegacy(CG);
 
@@ -2127,7 +2127,7 @@ ${options.rule.showOptions(options)}
 
       if (!___default['default'].isEmpty(tradeData) && ___default['default'].isArray(tradeData) && tradeData.length > 0 && options && options.n > 1) {
         let source = options && options.source === "ohlc" ? utils.ohlc : "close";
-        let digits = options.digits || 2;
+        let digits = options.digits || 3;
         let ma;
 
         if (options && options.m && options.m > 1) {
@@ -2170,7 +2170,7 @@ ${options.rule.showOptions(options)}
 
       if (!___default['default'].isEmpty(tradeData) && ___default['default'].isArray(tradeData) && tradeData.length > 0 && options && options.n >= 1 && options.m >= 1) {
         let source = options && options.source === "ohlc" ? utils.ohlc : utils.hl;
-        let digits = options.digits || 2;
+        let digits = options.digits || 3;
         let ma1 = utils.ma(tradeData, options.n, source, "ma", digits);
         let ma2 = utils.ma(tradeData, options.m, source, "ma", digits);
         let momentum = tradeData.map((item, i, all) => {
@@ -2203,6 +2203,7 @@ ${options.rule.showOptions(options)}
      *  mt: "AO" || "MTM"
      *  mn: 5
      *  mm: 12
+     *  mmsource: "hl" | "ohlc"
      *
      *  ditis: 3
      *
@@ -2217,12 +2218,16 @@ ${options.rule.showOptions(options)}
       let source = options && options.source || "close";
       let digits = options && options.digits || 3;
       let ma = options && options.ma || "ema";
-      let n = options && options.n || 20;
-      let km = options && options.km || 1.5;
-      let bm = options && options.bm || 2;
+      let n = options && options.n || 20; // kc边界倍数
+
+      let km = options && options.km || 1.5; // boll边界倍数
+
+      let bm = options && options.bm || 2; // 动量指标参数
+
       let mt = options && options.mt || "AO";
       let mn = options && options.mn || 5;
       let mm = options && options.mm || 12;
+      let mmsource = options && options.mmsource || "hl";
       let kcData = KC.calculate(tradeData, {
         n,
         m: km,
@@ -2251,7 +2256,7 @@ ${options.rule.showOptions(options)}
         mmData = AO.calculate(tradeData, {
           n: mn,
           m: mm,
-          source,
+          source: mmsource,
           digits
         });
       } // 下面根据轨道情况，判断状态，状态区分如下
@@ -2302,6 +2307,112 @@ ${options.rule.showOptions(options)}
       }
     };
 
+    /**
+     * 自选列表
+     */
+    const {
+      getDataRoot
+    } = require("@wt/lib-wtda-query");
+
+    const _ = require("lodash");
+
+    const moment = require("moment");
+
+    const path = require("path");
+
+    const fs = require("fs");
+
+    const fp = fs.promises;
+
+    async function readFavorites() {
+      let retData = {
+        updateTime: null,
+        favorites: [] // 下面考虑放个字段说明
+
+      };
+
+      try {
+        let dataFile = getFavoritesFile();
+
+        try {
+          retData = JSON.parse(await fp.readFile(dataFile, "utf-8"));
+        } catch (error) {
+          // 文件不存在，不考虑其它错误
+          if (!(error && error.code === "ENOENT")) {
+            console.error(`读取自选文件${dataFile}时发生错误：${error}, %o`, error);
+          } else {
+            console.error(`读取自选文件${dataFile}不存在，%o`, error);
+          }
+        }
+      } catch (error) {
+        console.error(`从本地读取自选数据发生错误 ${error}`);
+      }
+
+      return retData;
+    }
+
+    function getFavoritesFile() {
+      return path.join(getDataRoot(), "favorites.json");
+    }
+
+    async function addFavorites(tsCodes) {
+      let retData = await readFavorites();
+      if (_.isEmpty(tsCodes)) return retData;
+      let newCodes = [];
+
+      if (_.isArray(tsCodes)) {
+        if (tsCodes.length <= 0) return retData;
+        newCodes = tsCodes;
+      } else {
+        newCodes.push(tsCodes);
+      }
+
+      if (_.isEmpty(retData)) {
+        retData = {
+          updateTime: null,
+          favorites: []
+        };
+      }
+
+      if (_.isEmpty(retData.favorites) || !_.isArray(retData.favorites)) {
+        retData.favorites = [];
+      }
+
+      for (let newCode of newCodes) {
+        let found = false;
+
+        for (let code of retData.favorites) {
+          if (code === newCode) {
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) retData.favorites.push(newCode);
+      }
+
+      retData.updateTime = moment().toISOString();
+      await saveFavorites(retData);
+      return retData;
+    }
+
+    async function saveFavorites(data) {
+      try {
+        let jsonStr = JSON.stringify(data);
+        let favoritesPath = getFavoritesFile();
+        await fp.writeFile(favoritesPath, jsonStr, {
+          encoding: "utf-8"
+        });
+      } catch (error) {
+        throw new Error("保存列表数据时出现错误，请检查后重新执行：" + error);
+      }
+    }
+
+    var favorites = {
+      addFavorites,
+      readFavorites
+    };
+
     // const simulate = require("./simulator");
     const indicators = {
       MA,
@@ -2322,6 +2433,7 @@ ${options.rule.showOptions(options)}
     };
 
     exports.engine = engine;
+    exports.favorites = favorites;
     exports.formatFxstr = formatFxstr;
     exports.indicators = indicators;
     exports.reports = reports;

@@ -20,6 +20,8 @@ import AO from "./indicators/ao";
 import SQUEEZE from "./indicators/squeeze";
 import utils from "./indicators/utils";
 
+import favorites from "./favorites";
+
 const indicators = {
     MA,
     ATR,
@@ -48,4 +50,5 @@ export {
     formatFxstr,
     indicators,
     utils,
+    favorites,
 };

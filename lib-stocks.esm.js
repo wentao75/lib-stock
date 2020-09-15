@@ -1,6 +1,6 @@
 import { readStockList, readStockData, stockDataNames } from '@wt/lib-wtda-query';
-import moment from 'moment';
-import _ from 'lodash';
+import moment$1 from 'moment';
+import _$1 from 'lodash';
 import debugpkg from 'debug';
 import CG from 'console-grid';
 
@@ -98,7 +98,7 @@ async function executeTransaction(index, stockData, capitalData, options) {
 
 function executeCapitalSettlement(stockInfo, translog, capitalData, options) {
   // debug(`执行清算 %o`, translog);
-  if (_.isEmpty(translog)) return false; // 如果非固定头寸，检查当前提供的交易余额是否可执行
+  if (_$1.isEmpty(translog)) return false; // 如果非固定头寸，检查当前提供的交易余额是否可执行
 
   if (!options.fixCash && translog.total + capitalData.balance < 0) {
     debug(`账户余额${capitalData.balance}不足(${translog.total})，无法完成清算，交易取消! 交易信息: ${translog.type === "buy" ? "买入" : "卖出"}${stockInfo.ts_code} ${translog.count}股，价格${translog.price}，共计${translog.total}元[含佣金${translog.commission}元，过户费${translog.fee}，印花税${translog.duty}元]`);
@@ -269,7 +269,7 @@ function calculateTransactionFee(buy, stockInfo, count, price) {
 }
 
 function parseCapitalReports(capitalData) {
-  if (_.isEmpty(capitalData)) return; // 账户信息中主要需分析交易过程，正常都是为一次买入，一次卖出，这样作为一组交易，获得一次盈利结果
+  if (_$1.isEmpty(capitalData)) return; // 账户信息中主要需分析交易过程，正常都是为一次买入，一次卖出，这样作为一组交易，获得一次盈利结果
 
   let count = capitalData.transactions.length;
   let count_win = 0;
@@ -620,7 +620,7 @@ function parseWorkdayReports(transactions) {
   for (let trans of transactions) {
     let buy = trans.buy; // let sell = trans.sell;
 
-    let date = moment(buy.date, "YYYYMMDD");
+    let date = moment$1(buy.date, "YYYYMMDD");
     let day = date.day();
 
     if (day < 1 && day > 5) {
@@ -919,7 +919,7 @@ async function simulate(options) {
     };
 
     if (stockData) {
-      log(`[${stockItem.ts_code}]${stockItem.name} 【数据更新时间：${moment(stockData.updateTime).format("YYYY-MM-DD HH:mm")}】`); // 日线数据条数 ${
+      log(`[${stockItem.ts_code}]${stockItem.name} 【数据更新时间：${moment$1(stockData.updateTime).format("YYYY-MM-DD HH:mm")}】`); // 日线数据条数 ${
       //     stockData.data && stockData.data.length
       // }, 从${stockData.startDate}到${
       //     stockData.endDate
@@ -930,14 +930,14 @@ async function simulate(options) {
 
       calculatePrevAdjPrice(stockData); // 开始按照日期执行交易算法
 
-      let startDate = moment(options.startDate, "YYYYMMDD");
+      let startDate = moment$1(options.startDate, "YYYYMMDD");
       let currentDate = null;
 
       for (let index = 0; index < stockData.data.length; index++) {
         let daily = stockData.data[index];
-        let tradeDate = moment(daily.trade_date, "YYYYMMDD");
+        let tradeDate = moment$1(daily.trade_date, "YYYYMMDD");
 
-        if (_.isEmpty(currentDate)) {
+        if (_$1.isEmpty(currentDate)) {
           if (startDate.isAfter(tradeDate)) {
             continue;
           }
@@ -1054,20 +1054,20 @@ async function search(options) {
     let stockData = await readStockData(stockDataNames.daily, stockItem.ts_code);
 
     if (stockData) {
-      log$1(`[${stockItem.ts_code}]${stockItem.name} 【数据更新时间：${moment(stockData.updateTime).format("YYYY-MM-DD HH:mm")}】`); // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
+      log$1(`[${stockItem.ts_code}]${stockItem.name} 【数据更新时间：${moment$1(stockData.updateTime).format("YYYY-MM-DD HH:mm")}】`); // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
 
       stockData = await filterStockData$1(stockData); // 全部数据调整为前复权后再执行计算
 
       calculatePrevAdjPrice$1(stockData); // 开始按照日期执行交易算法
 
-      let startDate = moment(options.startDate, "YYYYMMDD");
+      let startDate = moment$1(options.startDate, "YYYYMMDD");
       let currentDate = null;
 
       for (let index = 0; index < stockData.data.length; index++) {
         let daily = stockData.data[index];
-        let tradeDate = moment(daily.trade_date, "YYYYMMDD");
+        let tradeDate = moment$1(daily.trade_date, "YYYYMMDD");
 
-        if (_.isEmpty(currentDate)) {
+        if (_$1.isEmpty(currentDate)) {
           if (startDate.isAfter(tradeDate)) {
             continue;
           }
@@ -1213,7 +1213,7 @@ function checkMMBBuyTransaction(stockInfo, balance, index, stockData, options) {
 
 
 function checkMMBSellTransaction(stockInfo, stock, index, stockData, options) {
-  if (_.isEmpty(stock) || stock.count <= 0) return; // 检查是否符合动能突破买入条件
+  if (_$1.isEmpty(stock) || stock.count <= 0) return; // 检查是否符合动能突破买入条件
   // if (
   //     !options.nommbsell &&
   //     !_.isEmpty(
@@ -1314,7 +1314,7 @@ const OPTIONS_NAME$1 = "stoploss";
  */
 
 function checkStoplossTransaction(stockInfo, stock, index, stockData, options) {
-  if (_.isEmpty(stock) || stock.count <= 0) return;
+  if (_$1.isEmpty(stock) || stock.count <= 0) return;
   let currentData = stockData[index]; // 止损最大损失比例
 
   let S = options && options[OPTIONS_NAME$1].S; // 这里检查纯粹的百分比止损
@@ -1391,7 +1391,7 @@ function checkBuyTransaction(stockInfo, balance, index, stockData, options) {
 
 
 function checkSellTransaction(stockInfo, stock, index, stockData, options) {
-  if (_.isEmpty(stock) || stock.count <= 0) return;
+  if (_$1.isEmpty(stock) || stock.count <= 0) return;
   let currentData = stockData[index];
   let tradeDate = currentData.trade_date;
   let bmoptions = options && options[RULE_NAME];
@@ -1547,7 +1547,7 @@ const OPTIONS_NAME$2 = "opensell";
  */
 
 function checkSellTransaction$1(stockInfo, stock, index, stockData, options) {
-  if (_.isEmpty(stock) || stock.count <= 0) return;
+  if (_$1.isEmpty(stock) || stock.count <= 0) return;
   let currentData = stockData[index];
   let tradeDate = currentData.trade_date; // 目前有持仓，检查是否达到开盘盈利卖出条件
 
@@ -1679,7 +1679,7 @@ function checkBuyTransaction$2(stockInfo, balance, index, stockData, options) {
 
 
 function checkSellTransaction$2(stockInfo, stock, index, stockData, options) {
-  if (_.isEmpty(stock) || stock.count <= 0) return;
+  if (_$1.isEmpty(stock) || stock.count <= 0) return;
   let sell = options.smashday && options.smashday.sell;
   let validDays = sell.validDays || 3;
 
@@ -1743,8 +1743,8 @@ const ORGANIZED = Symbol("表示数据是否经过检查和整理");
  */
 
 function checkTradeData(data, digits = 3) {
-  if (_.isEmpty(data) || data[ORGANIZED]) return data;
-  if (!_.isArray(data)) return data; // 检查数据排序，如果是降序，则反过来
+  if (_$1.isEmpty(data) || data[ORGANIZED]) return data;
+  if (!_$1.isArray(data)) return data; // 检查数据排序，如果是降序，则反过来
 
   if (checkOrder(data)) {
     data.reverse();
@@ -1781,9 +1781,9 @@ function calculatePrevAdjPrice$2(dailyData, digits = 3) {
 }
 
 function readData(item, prop) {
-  if (_.isFunction(prop)) {
+  if (_$1.isFunction(prop)) {
     return prop(item);
-  } else if (_.isString(prop)) {
+  } else if (_$1.isString(prop)) {
     return item && item[prop];
   }
 
@@ -1795,7 +1795,7 @@ function toFixed(num, digits = 3) {
 }
 
 function checkOrder(array) {
-  return array && _.isArray(array) && array.length > 1 && array[0].trade_date > array[array.length - 1].trade_date;
+  return array && _$1.isArray(array) && array.length > 1 && array[0].trade_date > array[array.length - 1].trade_date;
 }
 
 function average(array, index, n, prop, digits = 3) {
@@ -2118,9 +2118,9 @@ var BOLL = {
 function mtm(tradeData, options) {
   utils.checkTradeData(tradeData);
 
-  if (!_.isEmpty(tradeData) && _.isArray(tradeData) && tradeData.length > 0 && options && options.n > 1) {
+  if (!_$1.isEmpty(tradeData) && _$1.isArray(tradeData) && tradeData.length > 0 && options && options.n > 1) {
     let source = options && options.source === "ohlc" ? utils.ohlc : "close";
-    let digits = options.digits || 2;
+    let digits = options.digits || 3;
     let ma;
 
     if (options && options.m && options.m > 1) {
@@ -2161,9 +2161,9 @@ var MTM = {
 function ao(tradeData, options) {
   utils.checkTradeData(tradeData);
 
-  if (!_.isEmpty(tradeData) && _.isArray(tradeData) && tradeData.length > 0 && options && options.n >= 1 && options.m >= 1) {
+  if (!_$1.isEmpty(tradeData) && _$1.isArray(tradeData) && tradeData.length > 0 && options && options.n >= 1 && options.m >= 1) {
     let source = options && options.source === "ohlc" ? utils.ohlc : utils.hl;
-    let digits = options.digits || 2;
+    let digits = options.digits || 3;
     let ma1 = utils.ma(tradeData, options.n, source, "ma", digits);
     let ma2 = utils.ma(tradeData, options.m, source, "ma", digits);
     let momentum = tradeData.map((item, i, all) => {
@@ -2196,6 +2196,7 @@ var AO = {
  *  mt: "AO" || "MTM"
  *  mn: 5
  *  mm: 12
+ *  mmsource: "hl" | "ohlc"
  *
  *  ditis: 3
  *
@@ -2210,12 +2211,16 @@ function squeeze(tradeData, options) {
   let source = options && options.source || "close";
   let digits = options && options.digits || 3;
   let ma = options && options.ma || "ema";
-  let n = options && options.n || 20;
-  let km = options && options.km || 1.5;
-  let bm = options && options.bm || 2;
+  let n = options && options.n || 20; // kc边界倍数
+
+  let km = options && options.km || 1.5; // boll边界倍数
+
+  let bm = options && options.bm || 2; // 动量指标参数
+
   let mt = options && options.mt || "AO";
   let mn = options && options.mn || 5;
   let mm = options && options.mm || 12;
+  let mmsource = options && options.mmsource || "hl";
   let kcData = KC.calculate(tradeData, {
     n,
     m: km,
@@ -2244,7 +2249,7 @@ function squeeze(tradeData, options) {
     mmData = AO.calculate(tradeData, {
       n: mn,
       m: mm,
-      source,
+      source: mmsource,
       digits
     });
   } // 下面根据轨道情况，判断状态，状态区分如下
@@ -2295,6 +2300,112 @@ var SQUEEZE = {
   }
 };
 
+/**
+ * 自选列表
+ */
+const {
+  getDataRoot
+} = require("@wt/lib-wtda-query");
+
+const _ = require("lodash");
+
+const moment = require("moment");
+
+const path = require("path");
+
+const fs = require("fs");
+
+const fp = fs.promises;
+
+async function readFavorites() {
+  let retData = {
+    updateTime: null,
+    favorites: [] // 下面考虑放个字段说明
+
+  };
+
+  try {
+    let dataFile = getFavoritesFile();
+
+    try {
+      retData = JSON.parse(await fp.readFile(dataFile, "utf-8"));
+    } catch (error) {
+      // 文件不存在，不考虑其它错误
+      if (!(error && error.code === "ENOENT")) {
+        console.error(`读取自选文件${dataFile}时发生错误：${error}, %o`, error);
+      } else {
+        console.error(`读取自选文件${dataFile}不存在，%o`, error);
+      }
+    }
+  } catch (error) {
+    console.error(`从本地读取自选数据发生错误 ${error}`);
+  }
+
+  return retData;
+}
+
+function getFavoritesFile() {
+  return path.join(getDataRoot(), "favorites.json");
+}
+
+async function addFavorites(tsCodes) {
+  let retData = await readFavorites();
+  if (_.isEmpty(tsCodes)) return retData;
+  let newCodes = [];
+
+  if (_.isArray(tsCodes)) {
+    if (tsCodes.length <= 0) return retData;
+    newCodes = tsCodes;
+  } else {
+    newCodes.push(tsCodes);
+  }
+
+  if (_.isEmpty(retData)) {
+    retData = {
+      updateTime: null,
+      favorites: []
+    };
+  }
+
+  if (_.isEmpty(retData.favorites) || !_.isArray(retData.favorites)) {
+    retData.favorites = [];
+  }
+
+  for (let newCode of newCodes) {
+    let found = false;
+
+    for (let code of retData.favorites) {
+      if (code === newCode) {
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) retData.favorites.push(newCode);
+  }
+
+  retData.updateTime = moment().toISOString();
+  await saveFavorites(retData);
+  return retData;
+}
+
+async function saveFavorites(data) {
+  try {
+    let jsonStr = JSON.stringify(data);
+    let favoritesPath = getFavoritesFile();
+    await fp.writeFile(favoritesPath, jsonStr, {
+      encoding: "utf-8"
+    });
+  } catch (error) {
+    throw new Error("保存列表数据时出现错误，请检查后重新执行：" + error);
+  }
+}
+
+var favorites = {
+  addFavorites,
+  readFavorites
+};
+
 // const simulate = require("./simulator");
 const indicators = {
   MA,
@@ -2314,4 +2425,4 @@ const rules = {
   smashday
 };
 
-export { engine, formatFxstr, indicators, reports, rules, search, simulate, utils };
+export { engine, favorites, formatFxstr, indicators, reports, rules, search, simulate, utils };
