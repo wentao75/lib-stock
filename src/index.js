@@ -11,6 +11,8 @@ import engine from "./transaction-engine";
 import * as reports from "./reports";
 import { formatFxstr } from "./util";
 
+import squeeze from "./rules/squeeze";
+
 import MA from "./indicators/ma";
 import ATR from "./indicators/atr";
 import KC from "./indicators/keltner-channel";
@@ -39,6 +41,7 @@ const rules = {
     outsideday,
     opensell,
     smashday,
+    squeeze,
 };
 
 export {

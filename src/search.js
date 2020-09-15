@@ -8,6 +8,8 @@ import moment from "moment";
 import _ from "lodash";
 import debugpkg from "debug";
 
+import utils from "./indicators/utils";
+
 import { formatFxstr } from "./util";
 
 import engine from "./transaction-engine";
@@ -43,9 +45,14 @@ async function search(options) {
     log(`算法执行 ${stockList && stockList.length} 条数据`);
 
     log("");
+
+    let foundSignals = {};
     // 下一步开始按照给出的数据循环进行处理
     for (let stockItem of stockList) {
         // this.log(`处理数据：%o`, stockItem);
+        if (stockItem.name.match("ST")) {
+            continue;
+        }
 
         // 首先读取日线信息
         let stockData = await readStockData(
@@ -54,7 +61,7 @@ async function search(options) {
         );
 
         if (stockData) {
-            log(
+            debug(
                 `[${stockItem.ts_code}]${
                     stockItem.name
                 } 【数据更新时间：${moment(stockData.updateTime).format(
@@ -63,44 +70,29 @@ async function search(options) {
             );
 
             // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
-            stockData = await filterStockData(stockData);
+            stockData = await prepareStockData(stockData, options);
 
             // 全部数据调整为前复权后再执行计算
             calculatePrevAdjPrice(stockData);
 
-            // 开始按照日期执行交易算法
-            let startDate = moment(options.startDate, "YYYYMMDD");
-            let currentDate = null;
-            for (let index = 0; index < stockData.data.length; index++) {
-                let daily = stockData.data[index];
-                let tradeDate = moment(daily.trade_date, "YYYYMMDD");
-                if (_.isEmpty(currentDate)) {
-                    if (startDate.isAfter(tradeDate)) {
-                        continue;
-                    }
-                    debug(
-                        `找到开始日期，开始查找匹配模型数据！${index}, ${daily.trade_date}`
-                    );
-                } else {
-                    debug(`执行算法！${index}, ${daily.trade_date}`);
-                }
-                currentDate = tradeDate;
-
-                let matched = options.rule.check(
-                    index,
-                    stockData.data,
-                    options
+            debug(`执行算法！${stockData.data.length - 1}`);
+            let matched = options.rule.check(
+                stockData.data.length - 1,
+                stockData.data,
+                options
+            );
+            if (matched && matched.hasSignals) {
+                log(
+                    `**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}`
                 );
-                if (matched) {
-                    log(`${matched.memo}`);
+                let signal = matched.signal;
+                if (signal) {
+                    if (signal in foundSignals) {
+                        foundSignals[signal].push(stockItem.ts_code);
+                    } else {
+                        foundSignals[signal] = [stockItem.ts_code];
+                    }
                 }
-
-                // await engine.executeTransaction(
-                //     index,
-                //     stockData.data,
-                //     capitalData,
-                //     options
-                // );
             }
 
             // engine.showCapitalReports(log, capitalData);
@@ -110,10 +102,14 @@ async function search(options) {
             // if (options.showWorkdays) {
             //     reports.showWorkdayReports(log, capitalData.transactions);
             // }
-        } else {
-            log(
-                `[${stockItem.ts_code}]${stockItem.name} 没有日线数据，请检查！`
-            );
+        }
+    }
+
+    for (let item in foundSignals) {
+        let list = foundSignals[item];
+        log(`*** 信号类型：${item}，共发现${list && list.length} ***`);
+        for (let code of list) {
+            log(`  "${code}",`);
         }
     }
 }
@@ -157,6 +153,7 @@ function calculatePrevAdjPrice(dailyData, digits = 2) {
  * 这里后续考虑调整一下接口定义，目前暂时简化处理
  */
 async function filterStockList(stockList, options) {
+    if (options.all) return stockList;
     // let retStockList = [];
     return options.selectedStocks.map((tsCode) => {
         let tmp = stockList.filter((item) => {
@@ -173,8 +170,23 @@ async function filterStockList(stockList, options) {
  * @param {*} stockData 股票日线数据对象
  * @param {*} options 数据过滤条件
  */
-async function filterStockData(stockData, options) {
-    stockData.data.reverse();
+async function prepareStockData(stockData, options) {
+    utils.checkTradeData(stockData.data);
+
+    if (stockData && stockData.data && stockData.data.length > 0) {
+        if (stockData.data[0].trade_date < options.startDate) {
+            let index = stockData.data.findIndex((data, i) => {
+                return data.trade_date >= options.startDate;
+            });
+
+            if (index) {
+                stockData.data = stockData.data.slice(index);
+            } else {
+                stockData.data = [];
+            }
+        }
+    }
+    // stockData.data.reverse();
     return stockData;
 }
 

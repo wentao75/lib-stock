@@ -20,12 +20,14 @@ function boll(tradeData, options) {
         source: options.source,
         digits: options.digits,
     });
+    if (!ma) return;
     let stdev = utils.stdev(
         tradeData,
         options.n,
         (options && options.source) === "ohlc" ? utils.ohlc : "close",
         options.digits
     );
+    if (!stdev) return;
 
     let up = [];
     let down = [];

@@ -18,6 +18,7 @@ import ATR from "./atr";
 import utils from "./utils";
 
 function keltner(tradeData, options) {
+    if (!tradeData || tradeData.length < 0) return;
     utils.checkTradeData(tradeData);
 
     let ma = MA.calculate(tradeData, {
@@ -26,11 +27,13 @@ function keltner(tradeData, options) {
         source: options.source,
         digits: options.digits,
     });
+    if (!ma) return;
     let atr = ATR.calculate(tradeData, {
         n: options.n,
         type: options.type2,
         digits: options.digits,
     });
+    if (!atr) return;
     let up = [];
     let down = [];
     for (let i = 0; i < ma.length; i++) {

@@ -39,9 +39,9 @@ function squeeze(tradeData, options) {
     // boll边界倍数
     let bm = (options && options.bm) || 2;
     // 动量指标参数
-    let mt = (options && options.mt) || "AO";
-    let mn = (options && options.mn) || 5;
-    let mm = (options && options.mm) || 12;
+    let mt = (options && options.mt) || "MTM";
+    let mn = (options && options.mn) || 12;
+    let mm = (options && options.mm) || 1;
     let mmsource = (options && options.mmsource) || "hl";
 
     let kcData = KC.calculate(tradeData, {
@@ -104,15 +104,20 @@ function squeeze(tradeData, options) {
                 nextState = mmUp ? BUY : SELL;
             }
         } else if (currentState === BUY || currentState === SELL) {
-            // 检查是否出现动能减弱
-            if (
-                mmData &&
-                mmData[i] &&
-                mmData[i - 1] &&
-                ((currentState === BUY && mmData[i] < mmData[i - 1]) ||
-                    (currentState === SELL && mmData[i] > mmData[i - 1]))
-            ) {
-                nextState = REST;
+            if (ready) {
+                // 再次进入等待
+                nextState = READY;
+            } else {
+                // 检查是否出现动能减弱
+                if (
+                    mmData &&
+                    mmData[i] &&
+                    mmData[i - 1] &&
+                    ((currentState === BUY && mmData[i] < mmData[i - 1]) ||
+                        (currentState === SELL && mmData[i] > mmData[i - 1]))
+                ) {
+                    nextState = REST;
+                }
             }
         }
         currentState = nextState;
@@ -120,11 +125,11 @@ function squeeze(tradeData, options) {
     });
 
     return [
-        kcData[0],
-        bollData[1],
-        bollData[2],
-        kcData[1],
-        kcData[2],
+        kcData && kcData[0],
+        bollData && bollData[1],
+        bollData && bollData[2],
+        kcData && kcData[1],
+        kcData && kcData[2],
         mmData,
         states,
     ];

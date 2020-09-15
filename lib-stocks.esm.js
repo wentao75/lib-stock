@@ -1019,6 +1019,242 @@ async function filterStockData(stockData, options) {
   return stockData;
 }
 
+const ORGANIZED = Symbol("表示数据是否经过检查和整理");
+/**
+ * 对交易数据按照结构进行检查，检查后需要满足
+ * 1. 数组结构
+ * 2. 交易日期按照时间升序排列，0为最早的数据
+ * 3. 如果提供了赋权因子，进行前复权计算
+ * 4. 设置ORGANIZED标记为true
+ *
+ * @param {*} data 交易数据（日线）
+ */
+
+function checkTradeData(data, digits = 3) {
+  if (_$1.isEmpty(data) || data[ORGANIZED]) return data;
+  if (!_$1.isArray(data)) return data; // 检查数据排序，如果是降序，则反过来
+
+  if (checkOrder(data)) {
+    data.reverse();
+  }
+
+  if (data[0] && data[0].prevadj_factor) {
+    calculatePrevAdjPrice$1(data, digits);
+  }
+
+  data[ORGANIZED] = true;
+  return data;
+}
+/**
+ * 将日线数据中的历史价位根据复权因子全部处理为前复权结果，方便后续计算
+ *
+ * @param {*} dailyData 日线数据
+ * @param {int} digits 保留位数
+ */
+
+
+function calculatePrevAdjPrice$1(dailyData, digits = 3) {
+  if (dailyData && dailyData.length > 0) {
+    dailyData.forEach(item => {
+      if (item.prevadj_factor) {
+        item.open = toFixed(item.open * item.prevadj_factor, digits);
+        item.close = toFixed(item.close * item.prevadj_factor, digits);
+        item.high = toFixed(item.high * item.prevadj_factor, digits);
+        item.low = toFixed(item.low * item.prevadj_factor, digits);
+        item.pre_close = toFixed(item.pre_close * item.prevadj_factor, digits);
+        item.change = toFixed(item.change * item.prevadj_factor, digits);
+      }
+    });
+  }
+}
+
+function readData(item, prop) {
+  if (_$1.isFunction(prop)) {
+    return prop(item);
+  } else if (_$1.isString(prop)) {
+    return item && item[prop];
+  }
+
+  return item;
+}
+
+function toFixed(num, digits = 3) {
+  return Number(num.toFixed(digits));
+}
+
+function checkOrder(array) {
+  return array && _$1.isArray(array) && array.length > 1 && array[0].trade_date > array[array.length - 1].trade_date;
+}
+
+function average(array, index, n, prop, digits = 3) {
+  if (index >= 0 && array && Array.isArray(array) && array.length > index && n > 0) {
+    let desc = checkOrder(array);
+    let step = desc ? -1 : 1;
+    let lastIndex = index - step * n;
+
+    if (lastIndex < 0 || lastIndex >= array.length) {
+      return;
+    }
+
+    let i = index;
+    let count = 0;
+    let sum = 0;
+
+    while (i >= 0 && i < array.length && count < n) {
+      sum += readData(array[i], prop);
+      i -= step;
+      count++;
+    }
+
+    if (count === n) {
+      return toFixed(sum / n, digits);
+    } // let calcArr = array.slice(index - n + 1, index + 1);
+    // return (
+    //     calcArr
+    //         .map((item, i, all) => {
+    //             return readData(item, prop);
+    //         })
+    //         .reduce((total, item) => {
+    //             return total + item;
+    //         }, 0) / n
+    // );
+
+  }
+}
+
+function ma(array, n, prop, type, digits = 3) {
+  if (type === "ma") {
+    return sma(array, n, prop, digits);
+  } else {
+    return ema(array, n, prop, digits);
+  }
+}
+
+function sma(array, n, prop, digits = 3) {
+  if (array && Array.isArray(array) && array.length > 0 && n > 0) {
+    let desc = checkOrder(array);
+    let step = desc ? -1 : 1;
+    let i = desc ? array.length - 1 : 0;
+    let index = 0;
+    let ret = [];
+
+    while (i >= 0 && i < array.length) {
+      ret[index] = average(array, i, n, prop, digits);
+      index++;
+      i += step;
+    }
+
+    return ret;
+  }
+}
+
+function ema(array, n, prop, digits = 3) {
+  if (array && Array.isArray(array) && array.length > 0 && n > 0) {
+    let desc = checkOrder(array);
+    let step = desc ? -1 : 1;
+    let i = desc ? array.length - 1 : 0;
+    let index = 0;
+    let ret = [];
+    let tmp = 0;
+
+    while (i >= 0 && i < array.length) {
+      if (index === 0) {
+        tmp = readData(array[i], prop);
+      } else {
+        tmp = (2 * readData(array[i], prop) + (n - 1) * tmp) / (n + 1);
+      }
+
+      ret[index] = toFixed(tmp, digits);
+      index++;
+      i += step;
+    }
+
+    return ret;
+  }
+}
+/**
+ * 计算指定数据的TR值
+ * @param {*} data 日线数据
+ */
+
+
+function tr(data) {
+  if (data) {
+    return Math.max(data.high - data.low, Math.abs(data.high - data.pre_close), Math.abs(data.pre_close - data.low));
+  }
+}
+
+function ohlc(data) {
+  if (data) {
+    return (data.open + data.high + data.low + data.close) / 4;
+  }
+}
+
+function hl(data) {
+  if (data) {
+    return (data.high + data.low) / 2;
+  }
+}
+/**
+ *
+ * @param {Array} array 数据数组
+ * @param {number} n 平均天数
+ * @param {*} prop 数据属性或转换方法
+ * @param {string} type 偏差类型
+ * @param {boolean} desc 数据数组是否降序
+ * @param {number} digits 小数保留位数
+ */
+
+
+function stdev(array, n, prop, digits = 3) {
+  if (array && Array.isArray(array) && array.length > 0 && n > 0) {
+    let desc = checkOrder(array);
+    let step = desc ? -1 : 1;
+    let i = desc ? array.length - 1 : 0;
+    let index = 0;
+    let ret = [];
+
+    while (i >= 0 && i < array.length) {
+      let ma = average(array, i, n, prop, digits);
+      let d;
+
+      if (ma) {
+        let sum = 0;
+        let j = i;
+        let count = 0;
+
+        while (j >= 0 && j < array.length && count < n) {
+          sum += (readData(array[j], prop) - ma) ** 2;
+          count++;
+          j -= step;
+        }
+
+        d = toFixed(Math.sqrt(sum / (n - 1)), digits);
+      }
+
+      ret[index] = d;
+      index++;
+      i += step;
+    }
+
+    return ret;
+  }
+}
+
+var utils = {
+  average,
+  ma,
+  sma,
+  ema,
+  stdev,
+  tr,
+  ohlc,
+  hl,
+  readData,
+  toFixed,
+  checkTradeData
+};
+
 const log$1 = console.log;
 const debug$4 = debugpkg("search");
 
@@ -1046,49 +1282,38 @@ async function search(options) {
 
   stockList = await filterStockList$1(stockList, options);
   log$1(`算法执行 ${stockList && stockList.length} 条数据`);
-  log$1(""); // 下一步开始按照给出的数据循环进行处理
+  log$1("");
+  let foundSignals = {}; // 下一步开始按照给出的数据循环进行处理
 
   for (let stockItem of stockList) {
     // this.log(`处理数据：%o`, stockItem);
-    // 首先读取日线信息
+    if (stockItem.name.match("ST")) {
+      continue;
+    } // 首先读取日线信息
+
+
     let stockData = await readStockData(stockDataNames.daily, stockItem.ts_code);
 
     if (stockData) {
-      log$1(`[${stockItem.ts_code}]${stockItem.name} 【数据更新时间：${moment$1(stockData.updateTime).format("YYYY-MM-DD HH:mm")}】`); // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
+      debug$4(`[${stockItem.ts_code}]${stockItem.name} 【数据更新时间：${moment$1(stockData.updateTime).format("YYYY-MM-DD HH:mm")}】`); // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
 
-      stockData = await filterStockData$1(stockData); // 全部数据调整为前复权后再执行计算
+      stockData = await prepareStockData(stockData, options); // 全部数据调整为前复权后再执行计算
 
-      calculatePrevAdjPrice$1(stockData); // 开始按照日期执行交易算法
+      calculatePrevAdjPrice$2(stockData);
+      debug$4(`执行算法！${stockData.data.length - 1}`);
+      let matched = options.rule.check(stockData.data.length - 1, stockData.data, options);
 
-      let startDate = moment$1(options.startDate, "YYYYMMDD");
-      let currentDate = null;
+      if (matched && matched.hasSignals) {
+        log$1(`**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}`);
+        let signal = matched.signal;
 
-      for (let index = 0; index < stockData.data.length; index++) {
-        let daily = stockData.data[index];
-        let tradeDate = moment$1(daily.trade_date, "YYYYMMDD");
-
-        if (_$1.isEmpty(currentDate)) {
-          if (startDate.isAfter(tradeDate)) {
-            continue;
+        if (signal) {
+          if (signal in foundSignals) {
+            foundSignals[signal].push(stockItem.ts_code);
+          } else {
+            foundSignals[signal] = [stockItem.ts_code];
           }
-
-          debug$4(`找到开始日期，开始查找匹配模型数据！${index}, ${daily.trade_date}`);
-        } else {
-          debug$4(`执行算法！${index}, ${daily.trade_date}`);
         }
-
-        currentDate = tradeDate;
-        let matched = options.rule.check(index, stockData.data, options);
-
-        if (matched) {
-          log$1(`${matched.memo}`);
-        } // await engine.executeTransaction(
-        //     index,
-        //     stockData.data,
-        //     capitalData,
-        //     options
-        // );
-
       } // engine.showCapitalReports(log, capitalData);
       // if (options.showTrans) {
       //     engine.showTransactions(log, capitalData);
@@ -1097,8 +1322,15 @@ async function search(options) {
       //     reports.showWorkdayReports(log, capitalData.transactions);
       // }
 
-    } else {
-      log$1(`[${stockItem.ts_code}]${stockItem.name} 没有日线数据，请检查！`);
+    }
+  }
+
+  for (let item in foundSignals) {
+    let list = foundSignals[item];
+    log$1(`*** 信号类型：${item}，共发现${list && list.length} ***`);
+
+    for (let code of list) {
+      log$1(`  "${code}",`);
     }
   }
 }
@@ -1110,7 +1342,7 @@ async function search(options) {
  */
 
 
-function calculatePrevAdjPrice$1(dailyData, digits = 2) {
+function calculatePrevAdjPrice$2(dailyData, digits = 2) {
   if (dailyData && dailyData.data && dailyData.data.length > 0) {
     dailyData.data.forEach(item => {
       if (item.prevadj_factor) {
@@ -1132,7 +1364,8 @@ function calculatePrevAdjPrice$1(dailyData, digits = 2) {
 
 
 async function filterStockList$1(stockList, options) {
-  // let retStockList = [];
+  if (options.all) return stockList; // let retStockList = [];
+
   return options.selectedStocks.map(tsCode => {
     let tmp = stockList.filter(item => {
       return item.ts_code === tsCode;
@@ -1149,8 +1382,24 @@ async function filterStockList$1(stockList, options) {
  */
 
 
-async function filterStockData$1(stockData, options) {
-  stockData.data.reverse();
+async function prepareStockData(stockData, options) {
+  utils.checkTradeData(stockData.data);
+
+  if (stockData && stockData.data && stockData.data.length > 0) {
+    if (stockData.data[0].trade_date < options.startDate) {
+      let index = stockData.data.findIndex((data, i) => {
+        return data.trade_date >= options.startDate;
+      });
+
+      if (index) {
+        stockData.data = stockData.data.slice(index);
+      } else {
+        stockData.data = [];
+      }
+    }
+  } // stockData.data.reverse();
+
+
   return stockData;
 }
 
@@ -1731,242 +1980,6 @@ let smashday = {
   showOptions: showOptions$5
 };
 
-const ORGANIZED = Symbol("表示数据是否经过检查和整理");
-/**
- * 对交易数据按照结构进行检查，检查后需要满足
- * 1. 数组结构
- * 2. 交易日期按照时间升序排列，0为最早的数据
- * 3. 如果提供了赋权因子，进行前复权计算
- * 4. 设置ORGANIZED标记为true
- *
- * @param {*} data 交易数据（日线）
- */
-
-function checkTradeData(data, digits = 3) {
-  if (_$1.isEmpty(data) || data[ORGANIZED]) return data;
-  if (!_$1.isArray(data)) return data; // 检查数据排序，如果是降序，则反过来
-
-  if (checkOrder(data)) {
-    data.reverse();
-  }
-
-  if (data[0] && data[0].prevadj_factor) {
-    calculatePrevAdjPrice$2(data, digits);
-  }
-
-  data[ORGANIZED] = true;
-  return data;
-}
-/**
- * 将日线数据中的历史价位根据复权因子全部处理为前复权结果，方便后续计算
- *
- * @param {*} dailyData 日线数据
- * @param {int} digits 保留位数
- */
-
-
-function calculatePrevAdjPrice$2(dailyData, digits = 3) {
-  if (dailyData && dailyData.length > 0) {
-    dailyData.forEach(item => {
-      if (item.prevadj_factor) {
-        item.open = toFixed(item.open * item.prevadj_factor, digits);
-        item.close = toFixed(item.close * item.prevadj_factor, digits);
-        item.high = toFixed(item.high * item.prevadj_factor, digits);
-        item.low = toFixed(item.low * item.prevadj_factor, digits);
-        item.pre_close = toFixed(item.pre_close * item.prevadj_factor, digits);
-        item.change = toFixed(item.change * item.prevadj_factor, digits);
-      }
-    });
-  }
-}
-
-function readData(item, prop) {
-  if (_$1.isFunction(prop)) {
-    return prop(item);
-  } else if (_$1.isString(prop)) {
-    return item && item[prop];
-  }
-
-  return item;
-}
-
-function toFixed(num, digits = 3) {
-  return Number(num.toFixed(digits));
-}
-
-function checkOrder(array) {
-  return array && _$1.isArray(array) && array.length > 1 && array[0].trade_date > array[array.length - 1].trade_date;
-}
-
-function average(array, index, n, prop, digits = 3) {
-  if (index >= 0 && array && Array.isArray(array) && array.length > index && n > 0) {
-    let desc = checkOrder(array);
-    let step = desc ? -1 : 1;
-    let lastIndex = index - step * n;
-
-    if (lastIndex < 0 || lastIndex >= array.length) {
-      return;
-    }
-
-    let i = index;
-    let count = 0;
-    let sum = 0;
-
-    while (i >= 0 && i < array.length && count < n) {
-      sum += readData(array[i], prop);
-      i -= step;
-      count++;
-    }
-
-    if (count === n) {
-      return toFixed(sum / n, digits);
-    } // let calcArr = array.slice(index - n + 1, index + 1);
-    // return (
-    //     calcArr
-    //         .map((item, i, all) => {
-    //             return readData(item, prop);
-    //         })
-    //         .reduce((total, item) => {
-    //             return total + item;
-    //         }, 0) / n
-    // );
-
-  }
-}
-
-function ma(array, n, prop, type, digits = 3) {
-  if (type === "ma") {
-    return sma(array, n, prop, digits);
-  } else {
-    return ema(array, n, prop, digits);
-  }
-}
-
-function sma(array, n, prop, digits = 3) {
-  if (array && Array.isArray(array) && array.length > 0 && n > 0) {
-    let desc = checkOrder(array);
-    let step = desc ? -1 : 1;
-    let i = desc ? array.length - 1 : 0;
-    let index = 0;
-    let ret = [];
-
-    while (i >= 0 && i < array.length) {
-      ret[index] = average(array, i, n, prop, digits);
-      index++;
-      i += step;
-    }
-
-    return ret;
-  }
-}
-
-function ema(array, n, prop, digits = 3) {
-  if (array && Array.isArray(array) && array.length > 0 && n > 0) {
-    let desc = checkOrder(array);
-    let step = desc ? -1 : 1;
-    let i = desc ? array.length - 1 : 0;
-    let index = 0;
-    let ret = [];
-    let tmp = 0;
-
-    while (i >= 0 && i < array.length) {
-      if (index === 0) {
-        tmp = readData(array[i], prop);
-      } else {
-        tmp = (2 * readData(array[i], prop) + (n - 1) * tmp) / (n + 1);
-      }
-
-      ret[index] = toFixed(tmp, digits);
-      index++;
-      i += step;
-    }
-
-    return ret;
-  }
-}
-/**
- * 计算指定数据的TR值
- * @param {*} data 日线数据
- */
-
-
-function tr(data) {
-  if (data) {
-    return Math.max(data.high - data.low, Math.abs(data.high - data.pre_close), Math.abs(data.pre_close - data.low));
-  }
-}
-
-function ohlc(data) {
-  if (data) {
-    return (data.open + data.high + data.low + data.close) / 4;
-  }
-}
-
-function hl(data) {
-  if (data) {
-    return (data.high + data.low) / 2;
-  }
-}
-/**
- *
- * @param {Array} array 数据数组
- * @param {number} n 平均天数
- * @param {*} prop 数据属性或转换方法
- * @param {string} type 偏差类型
- * @param {boolean} desc 数据数组是否降序
- * @param {number} digits 小数保留位数
- */
-
-
-function stdev(array, n, prop, digits = 3) {
-  if (array && Array.isArray(array) && array.length > 0 && n > 0) {
-    let desc = checkOrder(array);
-    let step = desc ? -1 : 1;
-    let i = desc ? array.length - 1 : 0;
-    let index = 0;
-    let ret = [];
-
-    while (i >= 0 && i < array.length) {
-      let ma = average(array, i, n, prop, digits);
-      let d;
-
-      if (ma) {
-        let sum = 0;
-        let j = i;
-        let count = 0;
-
-        while (j >= 0 && j < array.length && count < n) {
-          sum += (readData(array[j], prop) - ma) ** 2;
-          count++;
-          j -= step;
-        }
-
-        d = toFixed(Math.sqrt(sum / (n - 1)), digits);
-      }
-
-      ret[index] = d;
-      index++;
-      i += step;
-    }
-
-    return ret;
-  }
-}
-
-var utils = {
-  average,
-  ma,
-  sma,
-  ema,
-  stdev,
-  tr,
-  ohlc,
-  hl,
-  readData,
-  toFixed,
-  checkTradeData
-};
-
 /**
  * 平均价
  *
@@ -2038,6 +2051,7 @@ var ATR = {
  */
 
 function keltner(tradeData, options) {
+  if (!tradeData || tradeData.length < 0) return;
   utils.checkTradeData(tradeData);
   let ma = MA.calculate(tradeData, {
     n: options.n,
@@ -2045,11 +2059,13 @@ function keltner(tradeData, options) {
     source: options.source,
     digits: options.digits
   });
+  if (!ma) return;
   let atr = ATR.calculate(tradeData, {
     n: options.n,
     type: options.type2,
     digits: options.digits
   });
+  if (!atr) return;
   let up = [];
   let down = [];
 
@@ -2087,7 +2103,9 @@ function boll(tradeData, options) {
     source: options.source,
     digits: options.digits
   });
+  if (!ma) return;
   let stdev = utils.stdev(tradeData, options.n, (options && options.source) === "ohlc" ? utils.ohlc : "close", options.digits);
+  if (!stdev) return;
   let up = [];
   let down = [];
 
@@ -2131,7 +2149,8 @@ function mtm(tradeData, options) {
 
     let momentum = tradeData.map((item, i, all) => {
       if (i > options.n) {
-        return utils.toFixed(utils.readData(item, source) - ma[i - options.n], //utils.readData(all[i - options.n], source),
+        return utils.toFixed(ma[i] - ma[i - options.n], //utils.readData(item, source) - ma[i - options.n],
+        //utils.readData(all[i - options.n], source),
         digits);
       } else {
         return 0;
@@ -2217,9 +2236,9 @@ function squeeze(tradeData, options) {
 
   let bm = options && options.bm || 2; // 动量指标参数
 
-  let mt = options && options.mt || "AO";
-  let mn = options && options.mn || 5;
-  let mm = options && options.mm || 12;
+  let mt = options && options.mt || "MTM";
+  let mn = options && options.mn || 12;
+  let mm = options && options.mm || 1;
   let mmsource = options && options.mmsource || "hl";
   let kcData = KC.calculate(tradeData, {
     n,
@@ -2275,16 +2294,21 @@ function squeeze(tradeData, options) {
         nextState = mmUp ? BUY : SELL;
       }
     } else if (currentState === BUY || currentState === SELL) {
-      // 检查是否出现动能减弱
-      if (mmData && mmData[i] && mmData[i - 1] && (currentState === BUY && mmData[i] < mmData[i - 1] || currentState === SELL && mmData[i] > mmData[i - 1])) {
-        nextState = REST;
+      if (ready) {
+        // 再次进入等待
+        nextState = READY;
+      } else {
+        // 检查是否出现动能减弱
+        if (mmData && mmData[i] && mmData[i - 1] && (currentState === BUY && mmData[i] < mmData[i - 1] || currentState === SELL && mmData[i] > mmData[i - 1])) {
+          nextState = REST;
+        }
       }
     }
 
     currentState = nextState;
     return nextState;
   });
-  return [kcData[0], bollData[1], bollData[2], kcData[1], kcData[2], mmData, states];
+  return [kcData && kcData[0], bollData && bollData[1], bollData && bollData[2], kcData && kcData[1], kcData && kcData[2], mmData, states];
 }
 
 var SQUEEZE = {
@@ -2298,6 +2322,88 @@ var SQUEEZE = {
     BUY,
     SELL
   }
+};
+
+const RULE_NAME$3 = "squeeze";
+
+function check$1(index, stockData, options) {
+  let sdata = SQUEEZE.calculate(stockData, options.squeeze);
+
+  if (stockData && _$1.isArray(stockData) && index < stockData.length && index >= 0) {
+    let tradeDate = stockData[index].trade_date;
+
+    if (sdata[6][index] === SQUEEZE.states.READY) {
+      // 有信号
+      return {
+        dataIndex: index,
+        date: tradeDate,
+        tradeType: "signal",
+        hasSignals: true,
+        signal: "READY",
+        type: "squeeze",
+        targetPrice: stockData[index].close,
+        memo: `挤牌信号，可考虑挤入 [${stockData[index].trade_date} ${sdata[6][index]}]`
+      };
+    } else if (sdata[6][index] === SQUEEZE.states.BUY) {
+      return {
+        dataIndex: index,
+        date: tradeDate,
+        tradeType: "buy",
+        hasSignals: true,
+        signal: "BUY",
+        type: "squeeze",
+        targetPrice: stockData[index].close,
+        memo: `挤牌信号明确，买入 [${stockData[index].trade_date} ${sdata[6][index]}]`
+      };
+    } else if (sdata[6][index] === SQUEEZE.states.SELL && options.squeeze.needSell) {
+      return {
+        dataIndex: index,
+        date: tradeDate,
+        hasSignals: true,
+        tradeType: "sell",
+        signal: "SELL",
+        type: "squeeze",
+        targetPrice: stockData[index].close,
+        memo: `挤牌信号明确，卖出 [${stockData[index].trade_date} ${sdata[6][index]}]`
+      };
+    }
+  }
+}
+
+function checkBuyTransaction$3(stockInfo, balance, index, stockData, options) {}
+
+function checkSellTransaction$3(stockInfo, stock, index, stockData, options) {}
+/**
+ * 返回参数配置的显示信息
+ * @param {*}} opions 参数配置
+ */
+
+
+function showOptions$6(options) {
+  let opt = options && options.squeeze;
+  let buy = opt && options.squeeze.buy;
+  let sell = opt && options.squeeze.sell;
+  return `
+模型 ${squeeze$1.name}[${squeeze$1.label}] 参数：
+source: ${opt.source}
+均值类型: ${opt.ma},    平均天数: ${opt.n}
+布林线倍率: ${opt.bm}   Keltner通道倍率: ${opt.km}
+动量类型:  ${opt.mt}
+动量平均天数：  ${opt.mn},     动量天数：${opt.mm}
+动量价格类型: ${opt.mmsource}
+
+`;
+}
+
+const squeeze$1 = {
+  name: "挤牌",
+  label: RULE_NAME$3,
+  description: "挤牌模型",
+  methodTypes: {},
+  checkBuyTransaction: checkBuyTransaction$3,
+  checkSellTransaction: checkSellTransaction$3,
+  check: check$1,
+  showOptions: showOptions$6
 };
 
 /**
@@ -2422,7 +2528,8 @@ const rules = {
   benchmark,
   outsideday,
   opensell,
-  smashday
+  smashday,
+  squeeze: squeeze$1
 };
 
 export { engine, favorites, formatFxstr, indicators, reports, rules, search, simulate, utils };
