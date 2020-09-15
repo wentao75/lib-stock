@@ -33,7 +33,8 @@ function mtm(tradeData, options) {
         let momentum = tradeData.map((item, i, all) => {
             if (i > options.n) {
                 return utils.toFixed(
-                    utils.readData(item, source) - ma[i - options.n],
+                    ma[i] - ma[i - options.n],
+                    //utils.readData(item, source) - ma[i - options.n],
                     //utils.readData(all[i - options.n], source),
                     digits
                 );
