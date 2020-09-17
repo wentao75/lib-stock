@@ -20,6 +20,7 @@ import BOLL from "./indicators/boll";
 import MTM from "./indicators/mtm";
 import AO from "./indicators/ao";
 import SQUEEZE from "./indicators/squeeze";
+import TTMWave from "./indicators/ttmwave";
 import utils from "./indicators/utils";
 
 import favorites from "./favorites";
@@ -32,6 +33,7 @@ const indicators = {
     MTM,
     AO,
     SQUEEZE,
+    TTMWave,
 };
 
 const rules = {

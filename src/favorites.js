@@ -41,6 +41,40 @@ function getFavoritesFile() {
     return path.join(getDataRoot(), "favorites.json");
 }
 
+async function removeFavorites(tsCodes) {
+    let retData = await readFavorites();
+    if (_.isEmpty(tsCodes)) return retData;
+
+    let newCodes = [];
+    if (_.isArray(tsCodes)) {
+        if (tsCodes.length <= 0) return retData;
+        newCodes = tsCodes;
+    } else {
+        newCodes.push(tsCodes);
+    }
+
+    if (_.isEmpty(retData)) {
+        retData = { updateTime: null, favorites: [] };
+    }
+
+    if (_.isEmpty(retData.favorites) || !_.isArray(retData.favorites)) {
+        retData.favorites = [];
+    }
+
+    for (let newCode of newCodes) {
+        for (let i in retData.favorites) {
+            if (retData.favorites[i] === newCode) {
+                retData.favorites.splice(i, 1);
+                break;
+            }
+        }
+    }
+
+    retData.updateTime = moment().toISOString();
+    await saveFavorites(retData);
+    return retData;
+}
+
 async function addFavorites(tsCodes) {
     let retData = await readFavorites();
     if (_.isEmpty(tsCodes)) return retData;
@@ -88,4 +122,4 @@ async function saveFavorites(data) {
     }
 }
 
-export default { addFavorites, readFavorites };
+export default { addFavorites, removeFavorites, readFavorites };

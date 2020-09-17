@@ -2169,39 +2169,152 @@ var MTM = {
 };
 
 /**
- * 基本动量指标
+ * TTM Wave A & B & C
  *
  * 参数：
- *  n: 短期平均天数
- *  m: 长期平均天数
- *  source: hl, ohlc
+ *  n: wave 短周期平均
+ *  ma: wave a 周期平均1
+ *  la: wave a 周期平均2
+ *  mb: wave b 周期平均1
+ *  lb: wave b 周期平均2
+ *  mc: wave c 周期平均1
+ *  lc: wave c 周期平均2
+ *
+ *  useb: true
+ *  usec: true
+ *  source: close, ohlc
  */
 
-function ao(tradeData, options) {
-  utils.checkTradeData(tradeData);
-
-  if (!_$1.isEmpty(tradeData) && _$1.isArray(tradeData) && tradeData.length > 0 && options && options.n >= 1 && options.m >= 1) {
-    let source = options && options.source === "ohlc" ? utils.ohlc : utils.hl;
-    let digits = options.digits || 3;
-    let ma1 = utils.ma(tradeData, options.n, source, "ma", digits);
-    let ma2 = utils.ma(tradeData, options.m, source, "ma", digits);
-    let momentum = tradeData.map((item, i, all) => {
-      if (i >= options.n && i > options.m) {
-        return utils.toFixed(ma1[i] - ma2[i], digits);
-      } else {
-        return 0;
-      }
-    });
-    return momentum;
+function subtract(array1, array2, digits) {
+  if (_$1.isEmpty(array1) || _$1.isEmpty(array2) || array1.length !== array2.length) {
+    return;
   }
+
+  return array1.map((item, i, all) => {
+    if (digits) {
+      return utils.toFixed(item - array2[i], digits);
+    } else {
+      return item - array2[i];
+    }
+  });
 }
 
-var AO = {
-  name: "AO",
-  label: "动量震动指标",
-  description: "比尔威廉姆斯动量振荡器指标",
-  calculate: ao
-};
+function ttmwave(tradeData, {
+  n = 8,
+  // 5
+  ma = 34,
+  // 21
+  la = 55,
+  // 34
+  useb = true,
+  mb = 89,
+  // 55
+  lb = 144,
+  // 89
+  usec = true,
+  mc = 233,
+  // 144
+  lc = 377,
+  // 233
+  source = "close",
+  digits = 3
+} = {}) {
+  utils.checkTradeData(tradeData);
+
+  if (_$1.isEmpty(tradeData) || !_$1.isArray(tradeData) || tradeData.length <= 0) {
+    return;
+  }
+
+  if (source === "ohlc") {
+    source = utils.ohlc;
+  } else {
+    source = "close";
+  } // let source = (options && options.source) == "ohlc" ? utils.ohlc : "close";
+  // let digits = (options && options.digits) || 3;
+  // let n = (options && options.n) || 8;
+  // let ma = (options && options.ma) || 34;
+  // let la = (options && options.la) || 55;
+  // let mb = (options && options.mb) || 89;
+  // let lb = (options && options.lb) || 144;
+  // let mc = (options && options.mb) || 233;
+  // let lc = (options && options.lb) || 377;
+  // wave A
+
+
+  let fastMA1 = utils.ma(tradeData, n, source, "ema", digits);
+  let slowMA1 = utils.ma(tradeData, ma, source, "ema", digits);
+  let macd1 = subtract(fastMA1, slowMA1);
+  let signal1 = utils.ma(macd1, ma, null, "ema", digits);
+  let hist1 = subtract(macd1, signal1, digits);
+  let fastMA2 = utils.ma(tradeData, n, source, "ema", digits);
+  let slowMA2 = utils.ma(tradeData, la, source, "ema", digits);
+  let macd2 = subtract(fastMA2, slowMA2);
+  let signal2 = utils.ma(macd2, la, null, "ema", digits);
+  let hist2 = subtract(macd2, signal2, digits); // wave B
+
+  let fastMA3 = useb ? utils.ma(tradeData, n, source, "ema", digits) : null;
+  let slowMA3 = useb ? utils.ma(tradeData, mb, source, "ema", digits) : null;
+  let macd3 = useb ? subtract(fastMA3, slowMA3) : null;
+  let signal3 = useb ? utils.ma(macd3, mb, null, "ema", digits) : null;
+  let hist3 = useb ? subtract(macd3, signal3, digits) : null;
+  let fastMA4 = useb ? utils.ma(tradeData, n, source, "ema", digits) : null;
+  let slowMA4 = useb ? utils.ma(tradeData, lb, source, "ema", digits) : null;
+  let macd4 = useb ? subtract(fastMA4, slowMA4) : null;
+  let signal4 = useb ? utils.ma(macd4, lb, null, "ema", digits) : null;
+  let hist4 = useb ? subtract(macd4, signal4, digits) : null; // wave C
+
+  let fastMA5 = usec ? utils.ma(tradeData, n, source, "ema", digits) : null;
+  let slowMA5 = usec ? utils.ma(tradeData, mc, source, "ema", digits) : null;
+  let macd5 = usec ? subtract(fastMA5, slowMA5) : null;
+  let signal5 = usec ? utils.ma(macd5, mc, null, "ema", digits) : null;
+  let hist5 = usec ? subtract(macd5, signal5, digits) : null;
+  let fastMA6 = usec ? utils.ma(tradeData, n, source, "ema", digits) : null;
+  let slowMA6 = usec ? utils.ma(tradeData, lc, source, "ema", digits) : null;
+  let macd6 = usec ? subtract(fastMA6, slowMA6, digits) : null;
+  let signal6 = usec ? utils.ma(macd6, mc, null, "ema", digits) : null;
+  let hist6 = usec ? subtract(macd6, signal6, digits) : null;
+  return [hist1, hist2, hist3, hist4, hist5, hist6, macd6];
+}
+
+var TTMWave = {
+  name: "TTM Wave",
+  label: "TTMWave",
+  description: "TTM 波浪A B C",
+  calculate: ttmwave
+}; // function ttmwave_ol(tradeData, options) {
+//     utils.checkTradeData(tradeData);
+//     if (
+//         _.isEmpty(tradeData) ||
+//         !_.isArray(tradeData) ||
+//         tradeData.length <= 0
+//     ) {
+//         return;
+//     }
+//     let source = (options && options.source) == "ohlc" ? utils.ohlc : "close";
+//     let digits = (options && options.digits) || 3;
+//     let n = (options && options.n) || 8;
+//     // wave A
+//     let ma = (options && options.ma) || 34;
+//     let la = (options && options.la) || 55;
+//     // wave B
+//     let mb = (options && options.mb) || 89;
+//     let lb = (options && options.lb) || 144;
+//     // wave C
+//     let mc = (options && options.mb) || 233;
+//     let lc = (options && options.lb) || 377;
+//     // 优化方式下，从头开始，每天的数据一次性完成
+//     let ttmwaves = [];
+//     let last = [];
+//     for (let i = 0; i < tradeData.length; i++) {
+//         let tmp = [];
+//         if (i === 0) {
+//             // 第一天的特殊数据
+//         } else {
+//             // wave a
+//             // let fastma1 =
+//         }
+//     }
+// }
 
 /**
  * 鸡排指标，Squeeze，From Mastering the Trade (3rd Ed)
@@ -2212,10 +2325,9 @@ var AO = {
  *  n: 20
  *  bm: 2
  *  km: 1.5
- *  mt: "AO" || "MTM"
+ *  mt: "MTM" || "WAVE"
  *  mn: 5
  *  mm: 12
- *  mmsource: "hl" | "ohlc"
  *
  *  ditis: 3
  *
@@ -2225,21 +2337,45 @@ const REST = "--";
 const BUY = "BUY";
 const SELL = "SELL";
 
-function squeeze(tradeData, options) {
+function squeeze(tradeData, {
+  source = "close",
+  digits = 3,
+  ma = "ema",
+  n = 20,
+  km = 1.5,
+  bm = 2,
+  mt = "MTM",
+  mn = 12,
+  mm = 1,
+  tn = 5,
+  tm = 21,
+  tl = 34
+} = {}) {
   utils.checkTradeData(tradeData);
-  let source = options && options.source || "close";
-  let digits = options && options.digits || 3;
-  let ma = options && options.ma || "ema";
-  let n = options && options.n || 20; // kc边界倍数
 
-  let km = options && options.km || 1.5; // boll边界倍数
+  if (source === "ohlc") {
+    source = utils.ohlc;
+  } else {
+    source = "close";
+  } // let source = (options && options.source) || "close";
+  // let digits = (options && options.digits) || 3;
+  // let ma = (options && options.ma) || "ema";
+  // let n = (options && options.n) || 20;
+  // // kc边界倍数
+  // let km = (options && options.km) || 1.5;
+  // // boll边界倍数
+  // let bm = (options && options.bm) || 2;
+  // // 动量指标参数
+  // let mt = (options && options.mt) || "MTM";
+  // let mn = (options && options.mn) || 12;
+  // let mm = (options && options.mm) || 1;
+  // let mmsource = (options && options.mmsource) || "hl";
+  // // TTM Wave
+  // let tn = (options && options.tn) || 5;
+  // let tm = (options && options.tm) || 21;
+  // let tl = (options && options.tl) || 34;
 
-  let bm = options && options.bm || 2; // 动量指标参数
 
-  let mt = options && options.mt || "MTM";
-  let mn = options && options.mn || 12;
-  let mm = options && options.mm || 1;
-  let mmsource = options && options.mmsource || "hl";
   let kcData = KC.calculate(tradeData, {
     n,
     m: km,
@@ -2255,34 +2391,31 @@ function squeeze(tradeData, options) {
     source,
     digits
   });
-  let mmData;
-
-  if (mt === "MTM") {
-    mmData = MTM.calculate(tradeData, {
-      n: mn,
-      m: mm,
-      source,
-      digits
-    });
-  } else {
-    mmData = AO.calculate(tradeData, {
-      n: mn,
-      m: mm,
-      source: mmsource,
-      digits
-    });
-  } // 下面根据轨道情况，判断状态，状态区分如下
+  let mmData = MTM.calculate(tradeData, {
+    n: mn,
+    m: mm,
+    source,
+    digits
+  });
+  let waveData = TTMWave.calculate(tradeData, {
+    n: tn,
+    ma: tm,
+    la: tl,
+    source,
+    digits,
+    useb: false,
+    usec: false
+  }); // 下面根据轨道情况，判断状态，状态区分如下
   // 1. boll进kc，启动警告状态：READY
   // 2. boll出kc，进入交易状态：
   //   2.1 mm>0，买入（多头）：BUY
   //   2.2 mm<=0，卖出（空头）：SELL
   // 3. mm 降低，交易结束：--
 
-
   let currentState = REST;
   let states = tradeData.map((item, i, all) => {
     let ready = bollData && kcData && bollData[1][i] && kcData[1][i] && bollData[1][i] <= kcData[1][i];
-    let mmUp = mmData && mmData[i] && mmData[i] > 0;
+    let mmUp = mt === "MTM" ? mmData && mmData[i] && mmData[i] >= 0 : waveData && waveData[0] && waveData[0][i] >= 0;
     let nextState = currentState;
 
     if (currentState === REST) {
@@ -2308,7 +2441,7 @@ function squeeze(tradeData, options) {
     currentState = nextState;
     return nextState;
   });
-  return [kcData && kcData[0], bollData && bollData[1], bollData && bollData[2], kcData && kcData[1], kcData && kcData[2], mmData, states];
+  return [kcData && kcData[0], bollData && bollData[1], bollData && bollData[2], kcData && kcData[1], kcData && kcData[2], mmData, states, waveData && waveData[0]];
 }
 
 var SQUEEZE = {
@@ -2407,6 +2540,41 @@ const squeeze$1 = {
 };
 
 /**
+ * 基本动量指标
+ *
+ * 参数：
+ *  n: 短期平均天数
+ *  m: 长期平均天数
+ *  source: hl, ohlc
+ */
+
+function ao(tradeData, options) {
+  utils.checkTradeData(tradeData);
+
+  if (!_$1.isEmpty(tradeData) && _$1.isArray(tradeData) && tradeData.length > 0 && options && options.n >= 1 && options.m >= 1) {
+    let source = options && options.source === "ohlc" ? utils.ohlc : utils.hl;
+    let digits = options.digits || 3;
+    let ma1 = utils.ma(tradeData, options.n, source, "ma", digits);
+    let ma2 = utils.ma(tradeData, options.m, source, "ma", digits);
+    let momentum = tradeData.map((item, i, all) => {
+      if (i >= options.n && i > options.m) {
+        return utils.toFixed(ma1[i] - ma2[i], digits);
+      } else {
+        return 0;
+      }
+    });
+    return momentum;
+  }
+}
+
+var AO = {
+  name: "AO",
+  label: "动量震动指标",
+  description: "比尔威廉姆斯动量振荡器指标",
+  calculate: ao
+};
+
+/**
  * 自选列表
  */
 const {
@@ -2452,6 +2620,43 @@ async function readFavorites() {
 
 function getFavoritesFile() {
   return path.join(getDataRoot(), "favorites.json");
+}
+
+async function removeFavorites(tsCodes) {
+  let retData = await readFavorites();
+  if (_.isEmpty(tsCodes)) return retData;
+  let newCodes = [];
+
+  if (_.isArray(tsCodes)) {
+    if (tsCodes.length <= 0) return retData;
+    newCodes = tsCodes;
+  } else {
+    newCodes.push(tsCodes);
+  }
+
+  if (_.isEmpty(retData)) {
+    retData = {
+      updateTime: null,
+      favorites: []
+    };
+  }
+
+  if (_.isEmpty(retData.favorites) || !_.isArray(retData.favorites)) {
+    retData.favorites = [];
+  }
+
+  for (let newCode of newCodes) {
+    for (let i in retData.favorites) {
+      if (retData.favorites[i] === newCode) {
+        retData.favorites.splice(i, 1);
+        break;
+      }
+    }
+  }
+
+  retData.updateTime = moment().toISOString();
+  await saveFavorites(retData);
+  return retData;
 }
 
 async function addFavorites(tsCodes) {
@@ -2509,6 +2714,7 @@ async function saveFavorites(data) {
 
 var favorites = {
   addFavorites,
+  removeFavorites,
   readFavorites
 };
 
@@ -2520,7 +2726,8 @@ const indicators = {
   BOLL,
   MTM,
   AO,
-  SQUEEZE
+  SQUEEZE,
+  TTMWave
 };
 const rules = {
   mmb,

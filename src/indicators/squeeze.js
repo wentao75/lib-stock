@@ -7,10 +7,9 @@
  *  n: 20
  *  bm: 2
  *  km: 1.5
- *  mt: "AO" || "MTM"
+ *  mt: "MTM" || "WAVE"
  *  mn: 5
  *  mm: 12
- *  mmsource: "hl" | "ohlc"
  *
  *  ditis: 3
  *
@@ -19,7 +18,8 @@ import _ from "lodash";
 import KC from "./keltner-channel";
 import BOLL from "./boll";
 import MTM from "./mtm";
-import AO from "./ao";
+// import AO from "./ao";
+import TTMWave from "./ttmwave";
 import utils from "./utils";
 
 const READY = "READY";
@@ -27,22 +27,48 @@ const REST = "--";
 const BUY = "BUY";
 const SELL = "SELL";
 
-function squeeze(tradeData, options) {
+function squeeze(
+    tradeData,
+    {
+        source = "close",
+        digits = 3,
+        ma = "ema",
+        n = 20,
+        km = 1.5,
+        bm = 2,
+        mt = "MTM",
+        mn = 12,
+        mm = 1,
+        tn = 5,
+        tm = 21,
+        tl = 34,
+    } = {}
+) {
     utils.checkTradeData(tradeData);
 
-    let source = (options && options.source) || "close";
-    let digits = (options && options.digits) || 3;
-    let ma = (options && options.ma) || "ema";
-    let n = (options && options.n) || 20;
-    // kc边界倍数
-    let km = (options && options.km) || 1.5;
-    // boll边界倍数
-    let bm = (options && options.bm) || 2;
-    // 动量指标参数
-    let mt = (options && options.mt) || "MTM";
-    let mn = (options && options.mn) || 12;
-    let mm = (options && options.mm) || 1;
-    let mmsource = (options && options.mmsource) || "hl";
+    if (source === "ohlc") {
+        source = utils.ohlc;
+    } else {
+        source = "close";
+    }
+    // let source = (options && options.source) || "close";
+    // let digits = (options && options.digits) || 3;
+    // let ma = (options && options.ma) || "ema";
+    // let n = (options && options.n) || 20;
+    // // kc边界倍数
+    // let km = (options && options.km) || 1.5;
+    // // boll边界倍数
+    // let bm = (options && options.bm) || 2;
+    // // 动量指标参数
+    // let mt = (options && options.mt) || "MTM";
+    // let mn = (options && options.mn) || 12;
+    // let mm = (options && options.mm) || 1;
+    // let mmsource = (options && options.mmsource) || "hl";
+
+    // // TTM Wave
+    // let tn = (options && options.tn) || 5;
+    // let tm = (options && options.tm) || 21;
+    // let tl = (options && options.tl) || 34;
 
     let kcData = KC.calculate(tradeData, {
         n,
@@ -60,22 +86,22 @@ function squeeze(tradeData, options) {
         digits,
     });
 
-    let mmData;
-    if (mt === "MTM") {
-        mmData = MTM.calculate(tradeData, {
-            n: mn,
-            m: mm,
-            source,
-            digits,
-        });
-    } else {
-        mmData = AO.calculate(tradeData, {
-            n: mn,
-            m: mm,
-            source: mmsource,
-            digits,
-        });
-    }
+    let mmData = MTM.calculate(tradeData, {
+        n: mn,
+        m: mm,
+        source,
+        digits,
+    });
+
+    let waveData = TTMWave.calculate(tradeData, {
+        n: tn,
+        ma: tm,
+        la: tl,
+        source,
+        digits,
+        useb: false,
+        usec: false,
+    });
 
     // 下面根据轨道情况，判断状态，状态区分如下
     // 1. boll进kc，启动警告状态：READY
@@ -92,7 +118,10 @@ function squeeze(tradeData, options) {
             kcData[1][i] &&
             bollData[1][i] <= kcData[1][i];
 
-        let mmUp = mmData && mmData[i] && mmData[i] > 0;
+        let mmUp =
+            mt === "MTM"
+                ? mmData && mmData[i] && mmData[i] >= 0
+                : waveData && waveData[0] && waveData[0][i] >= 0;
 
         let nextState = currentState;
         if (currentState === REST) {
@@ -132,6 +161,7 @@ function squeeze(tradeData, options) {
         kcData && kcData[2],
         mmData,
         states,
+        waveData && waveData[0],
     ];
 }
 
