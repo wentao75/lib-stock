@@ -2398,7 +2398,7 @@ ${options.rule.showOptions(options)}
         source,
         digits
       });
-      let mmData = MTM.calculate(tradeData, {
+      let mtmData = MTM.calculate(tradeData, {
         n: mn,
         m: mm,
         source,
@@ -2412,7 +2412,8 @@ ${options.rule.showOptions(options)}
         digits,
         useb: false,
         usec: false
-      }); // 下面根据轨道情况，判断状态，状态区分如下
+      });
+      let mmData = mt === "MTM" ? mtmData : waveData && waveData[0]; // 下面根据轨道情况，判断状态，状态区分如下
       // 1. boll进kc，启动警告状态：READY
       // 2. boll出kc，进入交易状态：
       //   2.1 mm>0，买入（多头）：BUY
@@ -2422,7 +2423,10 @@ ${options.rule.showOptions(options)}
       let currentState = REST;
       let states = tradeData.map((item, i, all) => {
         let ready = bollData && kcData && bollData[1][i] && kcData[1][i] && bollData[1][i] <= kcData[1][i];
-        let mmUp = mt === "MTM" ? mmData && mmData[i] && mmData[i] >= 0 : waveData && waveData[0] && waveData[0][i] >= 0;
+        let mmUp = mmData && mmData[i] && mmData[i] >= 0; // mt === "MTM"
+        //     ? mmData && mmData[i] && mmData[i] >= 0
+        //     : waveData && waveData[0] && waveData[0][i] >= 0;
+
         let nextState = currentState;
 
         if (currentState === REST) {
@@ -2448,7 +2452,7 @@ ${options.rule.showOptions(options)}
         currentState = nextState;
         return nextState;
       });
-      return [kcData && kcData[0], bollData && bollData[1], bollData && bollData[2], kcData && kcData[1], kcData && kcData[2], mmData, states, waveData && waveData[0]];
+      return [kcData && kcData[0], bollData && bollData[1], bollData && bollData[2], kcData && kcData[1], kcData && kcData[2], mtmData, states, waveData && waveData[0]];
     }
 
     var SQUEEZE = {
@@ -2579,6 +2583,64 @@ source: ${opt.source}
       label: "动量震动指标",
       description: "比尔威廉姆斯动量振荡器指标",
       calculate: ao
+    };
+
+    /**
+     * 抢帽子警报，内容非常简单，连续三个收盘价涨/跌作为警报，警报放在第一根线（3个连续的第一个）
+     */
+    const REST$1 = "--";
+    const BUY_READY = "BUY_READY";
+    const SELL_READY = "SELL_READY";
+    const BUY$1 = "BUY";
+    const SELL$1 = "SELL";
+
+    function scalper(tradeData) {
+      let retData = [];
+
+      if (!___default['default'].isNil(tradeData) && !___default['default'].isEmpty(tradeData)) {
+        let currentState = REST$1;
+
+        for (let i = 0; i < tradeData.length; i++) {
+          if (i < 2) {
+            retData[i] = [tradeData[i].trade_date, REST$1, tradeData[i].close];
+          } else {
+            let data = tradeData[i];
+            let data1 = tradeData[i - 1];
+            let data2 = tradeData[i - 2];
+
+            if (currentState !== BUY$1 && data.close > data1.close && data1.close > data2.close) {
+              // UP
+              retData[i - 2] = [data2.trade_date, BUY_READY, data2.low];
+              retData[i - 1] = [data1.trade_date, BUY$1, data2.close];
+              retData[i] = [data.trade_date, BUY$1, data.close];
+              currentState = BUY$1;
+            } else if (currentState !== SELL$1 && data.close < data1.close && data1.close < data2.close) {
+              retData[i - 2] = [data2.trade_date, SELL_READY, data2.high];
+              retData[i - 1] = [data1.trade_date, SELL$1, data2.close];
+              retData[i] = [data.trade_date, SELL$1, data.close];
+              currentState = SELL$1;
+            } else {
+              retData[i] = [data.trade_date, currentState, data.close];
+            }
+          }
+        }
+      }
+
+      return retData;
+    }
+
+    var Scalper = {
+      name: "Scalper",
+      label: "抢帽子",
+      description: "抢帽子警报",
+      calculate: scalper,
+      states: {
+        REST: REST$1,
+        BUY_READY,
+        SELL_READY,
+        BUY: BUY$1,
+        SELL: SELL$1
+      }
     };
 
     /**
@@ -2734,7 +2796,8 @@ source: ${opt.source}
       MTM,
       AO,
       SQUEEZE,
-      TTMWave
+      TTMWave,
+      Scalper
     };
     const rules = {
       mmb,

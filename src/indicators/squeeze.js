@@ -86,7 +86,7 @@ function squeeze(
         digits,
     });
 
-    let mmData = MTM.calculate(tradeData, {
+    let mtmData = MTM.calculate(tradeData, {
         n: mn,
         m: mm,
         source,
@@ -103,6 +103,8 @@ function squeeze(
         usec: false,
     });
 
+    let mmData = mt === "MTM" ? mtmData : waveData && waveData[0];
+
     // 下面根据轨道情况，判断状态，状态区分如下
     // 1. boll进kc，启动警告状态：READY
     // 2. boll出kc，进入交易状态：
@@ -118,10 +120,10 @@ function squeeze(
             kcData[1][i] &&
             bollData[1][i] <= kcData[1][i];
 
-        let mmUp =
-            mt === "MTM"
-                ? mmData && mmData[i] && mmData[i] >= 0
-                : waveData && waveData[0] && waveData[0][i] >= 0;
+        let mmUp = mmData && mmData[i] && mmData[i] >= 0;
+        // mt === "MTM"
+        //     ? mmData && mmData[i] && mmData[i] >= 0
+        //     : waveData && waveData[0] && waveData[0][i] >= 0;
 
         let nextState = currentState;
         if (currentState === REST) {
@@ -159,7 +161,7 @@ function squeeze(
         bollData && bollData[2],
         kcData && kcData[1],
         kcData && kcData[2],
-        mmData,
+        mtmData,
         states,
         waveData && waveData[0],
     ];
