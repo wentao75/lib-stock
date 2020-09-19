@@ -161,9 +161,11 @@ function squeeze(
         bollData && bollData[2],
         kcData && kcData[1],
         kcData && kcData[2],
-        mtmData,
+        mmData,
         states,
+        mtmData,
         waveData && waveData[0],
+        waveData && waveData[1],
     ];
 }
 
