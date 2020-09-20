@@ -1,4 +1,5 @@
 import {
+    getDataRoot,
     readStockList,
     readStockData,
     stockDataNames,
@@ -15,6 +16,10 @@ import { formatFxstr } from "./util";
 import engine from "./transaction-engine";
 import trans from "./transaction";
 
+const path = require("path");
+const fs = require("fs");
+const fp = fs.promises;
+
 const log = console.log;
 const debug = debugpkg("search");
 
@@ -22,9 +27,9 @@ function showOptionsInfo(options) {
     console.log(
         `测试数据周期: ${options.startDate}
 
-模型：${options.rule}
+模型：${options.match.rule}
 
-${options.rule.showOptions(options)}
+${options.match.rule.showOptions(options)}
 `
     );
 }
@@ -75,43 +80,107 @@ async function search(options) {
             // 全部数据调整为前复权后再执行计算
             calculatePrevAdjPrice(stockData);
 
+            let rule = options && options.match && options.match.rule;
             debug(`执行算法！${stockData.data.length - 1}`);
-            let matched = options.rule.check(
+            let matched = rule.check(
                 stockData.data.length - 1,
                 stockData.data,
-                options
+                options,
+                stockItem.ts_code
             );
             if (matched && matched.hasSignals) {
                 log(
-                    `**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}`
+                    `**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}, ${matched.days}`
                 );
                 let signal = matched.signal;
                 if (signal) {
                     if (signal in foundSignals) {
-                        foundSignals[signal].push(stockItem.ts_code);
+                        foundSignals[signal].push(matched);
                     } else {
-                        foundSignals[signal] = [stockItem.ts_code];
+                        foundSignals[signal] = [matched];
                     }
                 }
             }
-
-            // engine.showCapitalReports(log, capitalData);
-            // if (options.showTrans) {
-            //     engine.showTransactions(log, capitalData);
-            // }
-            // if (options.showWorkdays) {
-            //     reports.showWorkdayReports(log, capitalData.transactions);
-            // }
         }
     }
+
+    let report = options && options.match && options.match.report;
+    let reports = await report.createReports(foundSignals, options);
+    await saveReports(reports);
 
     for (let item in foundSignals) {
         let list = foundSignals[item];
         log(`*** 信号类型：${item}，共发现${list && list.length} ***`);
-        for (let code of list) {
-            log(`  "${code}",`);
-        }
+        // for (let code of list) {
+        //     log(`  "${code}",`);
+        // }
     }
+
+    let buyList = reports && reports.squeeze && reports.squeeze.buyList;
+    let readyList = reports && reports.squeeze && reports.squeeze.readyList;
+    let boundaries = [
+        "1天",
+        "2天",
+        "3天",
+        "6天内",
+        "12天内",
+        "21天内",
+        "34天内",
+        "超过34天",
+    ];
+    for (let i = 0; i < boundaries.length; i++) {
+        log(
+            `** 买入信号【${boundaries[i]}】： ${buyList && buyList[i].length}`
+        );
+    }
+    for (let i = 0; i < boundaries.length; i++) {
+        log(
+            `** 准备信号【${boundaries[i]}】： ${
+                readyList && readyList[i].length
+            }`
+        );
+    }
+}
+
+function getReportsFile() {
+    return path.join(getDataRoot(), "reports.json");
+}
+
+async function saveReports(data) {
+    try {
+        let jsonStr = JSON.stringify(data);
+        let filePath = getReportsFile();
+
+        await fp.writeFile(filePath, jsonStr, { encoding: "utf-8" });
+    } catch (error) {
+        throw new Error("保存报告数据时出现错误，请检查后重新执行：" + error);
+    }
+}
+
+async function readReports() {
+    let retData = {
+        updateTime: null,
+    };
+
+    try {
+        let dataFile = getReportsFile();
+        try {
+            retData = JSON.parse(await fp.readFile(dataFile, "utf-8"));
+        } catch (error) {
+            // 文件不存在，不考虑其它错误
+            if (!(error && error.code === "ENOENT")) {
+                console.error(
+                    `读取报告文件${dataFile}时发生错误：${error}, %o`,
+                    error
+                );
+            } else {
+                console.error(`读取报告文件${dataFile}不存在，%o`, error);
+            }
+        }
+    } catch (error) {
+        console.error(`从本地读取报告数据发生错误 ${error}`);
+    }
+    return retData;
 }
 
 /**
@@ -190,4 +259,4 @@ async function prepareStockData(stockData, options) {
     return stockData;
 }
 
-export default search;
+export default { search, readReports };

@@ -1262,15 +1262,20 @@ ${rules_desc}
       checkTradeData
     };
 
+    const path = require("path");
+
+    const fs = require("fs");
+
+    const fp = fs.promises;
     const log$1 = console.log;
     const debug$4 = debugpkg__default['default']("search");
 
     function showOptionsInfo$1(options) {
       console.log(`测试数据周期: ${options.startDate}
 
-模型：${options.rule}
+模型：${options.match.rule}
 
-${options.rule.showOptions(options)}
+${options.match.rule.showOptions(options)}
 `);
     }
 
@@ -1307,39 +1312,88 @@ ${options.rule.showOptions(options)}
           stockData = await prepareStockData(stockData, options); // 全部数据调整为前复权后再执行计算
 
           calculatePrevAdjPrice$2(stockData);
+          let rule = options && options.match && options.match.rule;
           debug$4(`执行算法！${stockData.data.length - 1}`);
-          let matched = options.rule.check(stockData.data.length - 1, stockData.data, options);
+          let matched = rule.check(stockData.data.length - 1, stockData.data, options, stockItem.ts_code);
 
           if (matched && matched.hasSignals) {
-            log$1(`**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}`);
+            log$1(`**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}, ${matched.days}`);
             let signal = matched.signal;
 
             if (signal) {
               if (signal in foundSignals) {
-                foundSignals[signal].push(stockItem.ts_code);
+                foundSignals[signal].push(matched);
               } else {
-                foundSignals[signal] = [stockItem.ts_code];
+                foundSignals[signal] = [matched];
               }
             }
-          } // engine.showCapitalReports(log, capitalData);
-          // if (options.showTrans) {
-          //     engine.showTransactions(log, capitalData);
-          // }
-          // if (options.showWorkdays) {
-          //     reports.showWorkdayReports(log, capitalData.transactions);
-          // }
-
+          }
         }
       }
+
+      let report = options && options.match && options.match.report;
+      let reports = await report.createReports(foundSignals, options);
+      await saveReports(reports);
 
       for (let item in foundSignals) {
         let list = foundSignals[item];
-        log$1(`*** 信号类型：${item}，共发现${list && list.length} ***`);
-
-        for (let code of list) {
-          log$1(`  "${code}",`);
-        }
+        log$1(`*** 信号类型：${item}，共发现${list && list.length} ***`); // for (let code of list) {
+        //     log(`  "${code}",`);
+        // }
       }
+
+      let buyList = reports && reports.squeeze && reports.squeeze.buyList;
+      let readyList = reports && reports.squeeze && reports.squeeze.readyList;
+      let boundaries = ["1天", "2天", "3天", "6天内", "12天内", "21天内", "34天内", "超过34天"];
+
+      for (let i = 0; i < boundaries.length; i++) {
+        log$1(`** 买入信号【${boundaries[i]}】： ${buyList && buyList[i].length}`);
+      }
+
+      for (let i = 0; i < boundaries.length; i++) {
+        log$1(`** 准备信号【${boundaries[i]}】： ${readyList && readyList[i].length}`);
+      }
+    }
+
+    function getReportsFile() {
+      return path.join(libWtdaQuery.getDataRoot(), "reports.json");
+    }
+
+    async function saveReports(data) {
+      try {
+        let jsonStr = JSON.stringify(data);
+        let filePath = getReportsFile();
+        await fp.writeFile(filePath, jsonStr, {
+          encoding: "utf-8"
+        });
+      } catch (error) {
+        throw new Error("保存报告数据时出现错误，请检查后重新执行：" + error);
+      }
+    }
+
+    async function readReports() {
+      let retData = {
+        updateTime: null
+      };
+
+      try {
+        let dataFile = getReportsFile();
+
+        try {
+          retData = JSON.parse(await fp.readFile(dataFile, "utf-8"));
+        } catch (error) {
+          // 文件不存在，不考虑其它错误
+          if (!(error && error.code === "ENOENT")) {
+            console.error(`读取报告文件${dataFile}时发生错误：${error}, %o`, error);
+          } else {
+            console.error(`读取报告文件${dataFile}不存在，%o`, error);
+          }
+        }
+      } catch (error) {
+        console.error(`从本地读取报告数据发生错误 ${error}`);
+      }
+
+      return retData;
     }
     /**
      * 将日线数据中的历史价位根据复权因子全部处理为前复权结果，方便后续计算
@@ -1409,6 +1463,11 @@ ${options.rule.showOptions(options)}
 
       return stockData;
     }
+
+    var search$1 = {
+      search,
+      readReports
+    };
 
     const debug$5 = debugpkg__default['default']("mmb");
     const OPTIONS_NAME = "mmb";
@@ -2473,13 +2532,14 @@ ${options.rule.showOptions(options)}
     const SQUEEZE_DATA = Symbol("SQUEEZE_DATA");
     const TTMWAVE_DATA = Symbol("TTMWAVE_DATA");
 
-    function check$1(index, stockData, options) {
+    function check$1(index, stockData, options, tsCode) {
       let sdata = SQUEEZE.calculate(stockData, options.squeeze); // 使用TTMWave同步进行检查
 
       let ttmwave = TTMWave.calculate(stockData, options.ttmwave);
 
       if (stockData && ___default['default'].isArray(stockData) && index < stockData.length && index >= 0) {
         let tradeDate = stockData[index].trade_date;
+        let days = checkDays(index, sdata[6]);
 
         if (sdata[6][index] === SQUEEZE.states.READY) {
           // 有信号
@@ -2498,6 +2558,7 @@ ${options.rule.showOptions(options)}
           }
 
           return {
+            tsCode,
             dataIndex: index,
             date: tradeDate,
             tradeType: "signal",
@@ -2505,34 +2566,61 @@ ${options.rule.showOptions(options)}
             signal: "READY",
             type: "squeeze",
             trends: [upTrend, downTrend],
+            days,
             targetPrice: stockData[index].close,
             memo: `挤牌信号，可考虑挤入 [${stockData[index].trade_date} ${sdata[6][index]}]`
           };
         } else if (sdata[6][index] === SQUEEZE.states.BUY) {
           // 检查Wave ABC的趋势变化
           return {
+            tsCode,
             dataIndex: index,
             date: tradeDate,
             tradeType: "buy",
             hasSignals: true,
             signal: "BUY",
             type: "squeeze",
+            days,
             targetPrice: stockData[index].close,
             memo: `挤牌信号明确，买入 [${stockData[index].trade_date} ${sdata[6][index]}]`
           };
         } else if (sdata[6][index] === SQUEEZE.states.SELL && options.squeeze.needSell) {
           return {
+            tsCode,
             dataIndex: index,
             date: tradeDate,
             hasSignals: true,
             tradeType: "sell",
             signal: "SELL",
             type: "squeeze",
+            days,
             targetPrice: stockData[index].close,
             memo: `挤牌信号明确，卖出 [${stockData[index].trade_date} ${sdata[6][index]}]`
           };
         }
       }
+    }
+
+    function checkDays(index, states) {
+      if (states[index] === SQUEEZE.states.REST) return [0, 0];
+      let trade_days = 0;
+      let state = states[index];
+
+      if (state === SQUEEZE.states.BUY || state === SQUEEZE.states.SELL) {
+        while (index - trade_days >= 0 && states[index - trade_days] === state) {
+          trade_days++;
+        }
+      }
+
+      let ready_days = 0;
+
+      if (states[index - trade_days] === SQUEEZE.states.READY) {
+        while (index - trade_days - ready_days >= 0 && states[index - trade_days - ready_days] === SQUEEZE.states.READY) {
+          ready_days++;
+        }
+      }
+
+      return [ready_days, trade_days];
     }
 
     function calculateSqueeze(stockData, options) {
@@ -2614,6 +2702,59 @@ source: ${opt.source}
 
 `;
     }
+    /**
+     * 将搜索得到的列表生成分析报表
+     *
+     * @param {*} results 搜索的匹配列表
+     * @param {*} options 匹配使用的参数
+     */
+
+
+    async function createReports(results, options) {
+      if (___default['default'].isNil(results)) return; // results 当中按照signal进行了分组
+      // 下面主要分析signal==="READY"情况下，时间的分布
+
+      let readyList = results && results[SQUEEZE.states.READY]; // 1, 2, 3, 6, 12, 21, 34
+      // let boundaries = [1, 2, 3, 6, 12, 21, 34];
+
+      let days = [[], [], [], [], [], [], [], []];
+
+      for (let item of readyList) {
+        let ready_days = item.days && item.days[0];
+        let i = 0;
+        if (ready_days === 1) i = 0;else if (ready_days === 2) i = 1;else if (ready_days === 3) i = 2;else if (ready_days > 3 && ready_days <= 6) i = 3;else if (ready_days > 6 && ready_days <= 12) i = 4;else if (ready_days > 12 && ready_days <= 21) i = 5;else if (ready_days > 21 && ready_days <= 34) i = 6;else i = 7;
+
+        if (days[i]) {
+          days[i].push(item.tsCode);
+        } else {
+          days[i] = [item.tsCode];
+        }
+      }
+
+      let buyList = results && results[SQUEEZE.states.BUY];
+      let bdays = [[], [], [], [], [], [], [], []];
+
+      for (let item of buyList) {
+        let buy_days = item.days && item.days[1];
+        let i = 0;
+        if (buy_days === 1) i = 0;else if (buy_days === 2) i = 1;else if (buy_days === 3) i = 2;else if (buy_days > 3 && buy_days <= 6) i = 3;else if (buy_days > 6 && buy_days <= 12) i = 4;else if (buy_days > 12 && buy_days <= 21) i = 5;else if (buy_days > 21 && buy_days <= 34) i = 6;else i = 7;
+
+        if (bdays[i]) {
+          bdays[i].push(item.tsCode);
+        } else {
+          bdays[i] = [item.tsCode];
+        }
+      }
+
+      let reports = {
+        updateTime: moment__default['default']().toISOString(),
+        squeeze: {
+          readyList: days,
+          buyList: bdays
+        }
+      };
+      return reports;
+    }
 
     const squeeze$1 = {
       name: "挤牌",
@@ -2623,7 +2764,8 @@ source: ${opt.source}
       checkBuyTransaction: checkBuyTransaction$3,
       checkSellTransaction: checkSellTransaction$3,
       check: check$1,
-      showOptions: showOptions$6
+      showOptions: showOptions$6,
+      createReports
     };
 
     /**
@@ -2730,11 +2872,11 @@ source: ${opt.source}
 
     const moment = require("moment");
 
-    const path = require("path");
+    const path$1 = require("path");
 
-    const fs = require("fs");
+    const fs$1 = require("fs");
 
-    const fp = fs.promises;
+    const fp$1 = fs$1.promises;
 
     async function readFavorites() {
       let retData = {
@@ -2747,7 +2889,7 @@ source: ${opt.source}
         let dataFile = getFavoritesFile();
 
         try {
-          retData = JSON.parse(await fp.readFile(dataFile, "utf-8"));
+          retData = JSON.parse(await fp$1.readFile(dataFile, "utf-8"));
         } catch (error) {
           // 文件不存在，不考虑其它错误
           if (!(error && error.code === "ENOENT")) {
@@ -2764,7 +2906,7 @@ source: ${opt.source}
     }
 
     function getFavoritesFile() {
-      return path.join(getDataRoot(), "favorites.json");
+      return path$1.join(getDataRoot(), "favorites.json");
     }
 
     async function removeFavorites(tsCodes) {
@@ -2849,7 +2991,7 @@ source: ${opt.source}
       try {
         let jsonStr = JSON.stringify(data);
         let favoritesPath = getFavoritesFile();
-        await fp.writeFile(favoritesPath, jsonStr, {
+        await fp$1.writeFile(favoritesPath, jsonStr, {
           encoding: "utf-8"
         });
       } catch (error) {
@@ -2891,7 +3033,7 @@ source: ${opt.source}
     exports.indicators = indicators;
     exports.reports = reports;
     exports.rules = rules;
-    exports.search = search;
+    exports.search = search$1;
     exports.simulate = simulate;
     exports.utils = utils;
 
