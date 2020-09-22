@@ -2525,6 +2525,32 @@ const RULE_NAME$3 = "squeeze";
 const SQUEEZE_DATA = Symbol("SQUEEZE_DATA");
 const TTMWAVE_DATA = Symbol("TTMWAVE_DATA");
 
+function checkTTM(index, ttmwave) {
+  // 检查TTM Wave ABC的趋势
+  let upTrend = 0;
+  let downTrend = 0;
+  let ups = 0;
+  let downs = 0;
+
+  if (index - 2 >= 0) {
+    for (let i = 0; i < 6; i++) {
+      if (ttmwave[i][index] >= 0) {
+        ups++;
+      } else {
+        downs++;
+      }
+
+      if (ttmwave[i][index] > ttmwave[i][index - 1] && ttmwave[i][index - 1] > ttmwave[i][index - 2]) {
+        upTrend++;
+      } else {
+        downTrend++;
+      }
+    }
+  }
+
+  return [ups, downs, upTrend, downTrend];
+}
+
 function check$1(index, stockData, options, tsCode) {
   let sdata = SQUEEZE.calculate(stockData, options.squeeze); // 使用TTMWave同步进行检查
 
@@ -2533,63 +2559,58 @@ function check$1(index, stockData, options, tsCode) {
   if (stockData && _$1.isArray(stockData) && index < stockData.length && index >= 0) {
     let tradeDate = stockData[index].trade_date;
     let days = checkDays(index, sdata[6]);
+    let trends = checkTTM(index, ttmwave);
 
     if (sdata[6][index] === SQUEEZE.states.READY) {
       // 有信号
-      // 检查TTM Wave ABC的趋势
-      let upTrend = 0;
-      let downTrend = 0;
-
-      if (index - 2 >= 0) {
-        for (let i = 0; i < 6; i++) {
-          if (ttmwave[i][index] > ttmwave[i][index - 1] && ttmwave[i][index - 1] > ttmwave[i][index - 2]) {
-            upTrend++;
-          } else {
-            downTrend++;
-          }
-        }
+      if (trends[0] >= 4 && trends[2] >= 4) {
+        return {
+          tsCode,
+          dataIndex: index,
+          date: tradeDate,
+          tradeType: "signal",
+          hasSignals: true,
+          signal: "READY",
+          type: "squeeze",
+          trends,
+          days,
+          targetPrice: stockData[index].close,
+          memo: `挤牌信号，可考虑挤入 [${stockData[index].trade_date} ${sdata[6][index]}]`
+        };
       }
-
-      return {
-        tsCode,
-        dataIndex: index,
-        date: tradeDate,
-        tradeType: "signal",
-        hasSignals: true,
-        signal: "READY",
-        type: "squeeze",
-        trends: [upTrend, downTrend],
-        days,
-        targetPrice: stockData[index].close,
-        memo: `挤牌信号，可考虑挤入 [${stockData[index].trade_date} ${sdata[6][index]}]`
-      };
     } else if (sdata[6][index] === SQUEEZE.states.BUY) {
       // 检查Wave ABC的趋势变化
-      return {
-        tsCode,
-        dataIndex: index,
-        date: tradeDate,
-        tradeType: "buy",
-        hasSignals: true,
-        signal: "BUY",
-        type: "squeeze",
-        days,
-        targetPrice: stockData[index].close,
-        memo: `挤牌信号明确，买入 [${stockData[index].trade_date} ${sdata[6][index]}]`
-      };
+      if (trends[0] >= 4 && trends[2] >= 4) {
+        return {
+          tsCode,
+          dataIndex: index,
+          date: tradeDate,
+          tradeType: "buy",
+          hasSignals: true,
+          signal: "BUY",
+          type: "squeeze",
+          trends,
+          days,
+          targetPrice: stockData[index].close,
+          memo: `挤牌信号明确，买入 [${stockData[index].trade_date} ${sdata[6][index]}]`
+        };
+      }
     } else if (sdata[6][index] === SQUEEZE.states.SELL && options.squeeze.needSell) {
-      return {
-        tsCode,
-        dataIndex: index,
-        date: tradeDate,
-        hasSignals: true,
-        tradeType: "sell",
-        signal: "SELL",
-        type: "squeeze",
-        days,
-        targetPrice: stockData[index].close,
-        memo: `挤牌信号明确，卖出 [${stockData[index].trade_date} ${sdata[6][index]}]`
-      };
+      if (trends[1] >= 4 && trends[3] >= 4) {
+        return {
+          tsCode,
+          dataIndex: index,
+          date: tradeDate,
+          hasSignals: true,
+          tradeType: "sell",
+          signal: "SELL",
+          type: "squeeze",
+          trends,
+          days,
+          targetPrice: stockData[index].close,
+          memo: `挤牌信号明确，卖出 [${stockData[index].trade_date} ${sdata[6][index]}]`
+        };
+      }
     }
   }
 }
@@ -2794,6 +2815,96 @@ var AO = {
   label: "动量震动指标",
   description: "比尔威廉姆斯动量振荡器指标",
   calculate: ao
+};
+
+/**
+ * TTM Trend
+ * 暂未完成，这个部分书上的描述并不清晰，对于如何比较前六个柱价格和当前柱的关系无法准确确定
+ *
+ * 摘抄：
+ * 这项技术将前6根柱状线价格做平均。如果前面6根柱状线的平均价格位于交易区间的上半部分，
+ * 则把当前柱状线涂成蓝色，代表偏向看涨和稳定的买方压力。然而，如果前面6根柱状线的平均
+ * 价格位于交易区间的下半部分，那么当前柱状线将被涂成红色，代表偏向看跌和稳定的卖方压力。
+ *
+ * 参数
+ *  n: 6 过去的天数
+ *  type: TTM | HA
+ */
+/**
+ * 计算每日的趋势情况，返回值设置为涨或跌，用1和0表示
+ * @param {*} tradeData 所有数据
+ * @param {*} options 参数，n 平均周期, type 平均类型, digits 保留小数位数
+ */
+
+function ttmtrend(tradeData, {
+  n = 6,
+  type = "TTM"
+} = {}) {
+  utils.checkTradeData(tradeData);
+  let trends = []; // TTM暂未实现，只能给出HA结果！
+
+  type = "HA";
+
+  if (!_$1.isNil(tradeData) && !_$1.isEmpty(tradeData)) {
+    for (let i = 0; i < tradeData.length; i++) {
+      let data = tradeData[i];
+      let up = data.close >= data.open;
+      let trend;
+
+      if (type === "TTM") {
+        if (i === 0) {
+          trend = (tradeData[0].open + tradeData[0].close) / 2 >= (tradeData[0].high + tradeData[0].low) / 2 ? 1 : 0;
+        } else {
+          // let hl = (data.high + data.low) / 2;
+          let avg = 0;
+          let high = 0;
+          let low = Number.MAX_VALUE;
+          let len = 0;
+
+          for (let j = 0; j < n; j++) {
+            if (i - j - 1 >= 0) {
+              let ld = tradeData[i - j - 1];
+              avg += (ld.open + ld.close) / 2;
+              high = Math.max(high, ld.high);
+              low = Math.min(low, ld.low);
+              len++;
+            } else {
+              break;
+            }
+          }
+
+          avg = avg / len / 2;
+          let hl = (high + low) / 2;
+          trend = hl >= avg;
+        }
+      } else if (type === "HA") {
+        // HA pattern
+        if (i > 0) {
+          let o = (tradeData[i - 1].open + tradeData[i - 1].close) / 2;
+          let c = (tradeData[i].open + tradeData[i].high + tradeData[i].low + tradeData[i].close) / 4; //up = c >= o;
+          // 1/0表示正常升降，3/2表示修改升降
+
+          trend = c >= o;
+        } //trends[i] = up;
+
+      }
+
+      if (up) {
+        trends[i] = trend ? 1 : 2;
+      } else {
+        trends[i] = trend ? 3 : 0;
+      }
+    }
+  }
+
+  return trends;
+}
+
+var TTMTrend = {
+  name: "TTM趋势",
+  label: "TTMTrend",
+  description: "将前几日的市场情况纳入到对今日趋势的判断中",
+  calculate: ttmtrend
 };
 
 /**
@@ -3008,6 +3119,7 @@ const indicators = {
   AO,
   SQUEEZE,
   TTMWave,
+  TTMTrend,
   Scalper
 };
 const rules = {

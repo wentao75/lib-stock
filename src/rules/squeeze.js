@@ -12,6 +12,32 @@ const RULE_NAME = "squeeze";
 const SQUEEZE_DATA = Symbol("SQUEEZE_DATA");
 const TTMWAVE_DATA = Symbol("TTMWAVE_DATA");
 
+function checkTTM(index, ttmwave) {
+    // 检查TTM Wave ABC的趋势
+    let upTrend = 0;
+    let downTrend = 0;
+    let ups = 0;
+    let downs = 0;
+    if (index - 2 >= 0) {
+        for (let i = 0; i < 6; i++) {
+            if (ttmwave[i][index] >= 0) {
+                ups++;
+            } else {
+                downs++;
+            }
+            if (
+                ttmwave[i][index] > ttmwave[i][index - 1] &&
+                ttmwave[i][index - 1] > ttmwave[i][index - 2]
+            ) {
+                upTrend++;
+            } else {
+                downTrend++;
+            }
+        }
+    }
+    return [ups, downs, upTrend, downTrend];
+}
+
 function check(index, stockData, options, tsCode) {
     let sdata = SQUEEZE.calculate(stockData, options.squeeze);
 
@@ -26,66 +52,60 @@ function check(index, stockData, options, tsCode) {
     ) {
         let tradeDate = stockData[index].trade_date;
         let days = checkDays(index, sdata[6]);
+        let trends = checkTTM(index, ttmwave);
         if (sdata[6][index] === SQUEEZE.states.READY) {
             // 有信号
-            // 检查TTM Wave ABC的趋势
-            let upTrend = 0;
-            let downTrend = 0;
-            if (index - 2 >= 0) {
-                for (let i = 0; i < 6; i++) {
-                    if (
-                        ttmwave[i][index] > ttmwave[i][index - 1] &&
-                        ttmwave[i][index - 1] > ttmwave[i][index - 2]
-                    ) {
-                        upTrend++;
-                    } else {
-                        downTrend++;
-                    }
-                }
+            if (trends[0] >= 4 && trends[2] >= 4) {
+                return {
+                    tsCode,
+                    dataIndex: index,
+                    date: tradeDate,
+                    tradeType: "signal",
+                    hasSignals: true,
+                    signal: "READY",
+                    type: "squeeze",
+                    trends,
+                    days,
+                    targetPrice: stockData[index].close,
+                    memo: `挤牌信号，可考虑挤入 [${stockData[index].trade_date} ${sdata[6][index]}]`,
+                };
             }
-            return {
-                tsCode,
-                dataIndex: index,
-                date: tradeDate,
-                tradeType: "signal",
-                hasSignals: true,
-                signal: "READY",
-                type: "squeeze",
-                trends: [upTrend, downTrend],
-                days,
-                targetPrice: stockData[index].close,
-                memo: `挤牌信号，可考虑挤入 [${stockData[index].trade_date} ${sdata[6][index]}]`,
-            };
         } else if (sdata[6][index] === SQUEEZE.states.BUY) {
             // 检查Wave ABC的趋势变化
-            return {
-                tsCode,
-                dataIndex: index,
-                date: tradeDate,
-                tradeType: "buy",
-                hasSignals: true,
-                signal: "BUY",
-                type: "squeeze",
-                days,
-                targetPrice: stockData[index].close,
-                memo: `挤牌信号明确，买入 [${stockData[index].trade_date} ${sdata[6][index]}]`,
-            };
+            if (trends[0] >= 4 && trends[2] >= 4) {
+                return {
+                    tsCode,
+                    dataIndex: index,
+                    date: tradeDate,
+                    tradeType: "buy",
+                    hasSignals: true,
+                    signal: "BUY",
+                    type: "squeeze",
+                    trends,
+                    days,
+                    targetPrice: stockData[index].close,
+                    memo: `挤牌信号明确，买入 [${stockData[index].trade_date} ${sdata[6][index]}]`,
+                };
+            }
         } else if (
             sdata[6][index] === SQUEEZE.states.SELL &&
             options.squeeze.needSell
         ) {
-            return {
-                tsCode,
-                dataIndex: index,
-                date: tradeDate,
-                hasSignals: true,
-                tradeType: "sell",
-                signal: "SELL",
-                type: "squeeze",
-                days,
-                targetPrice: stockData[index].close,
-                memo: `挤牌信号明确，卖出 [${stockData[index].trade_date} ${sdata[6][index]}]`,
-            };
+            if (trends[1] >= 4 && trends[3] >= 4) {
+                return {
+                    tsCode,
+                    dataIndex: index,
+                    date: tradeDate,
+                    hasSignals: true,
+                    tradeType: "sell",
+                    signal: "SELL",
+                    type: "squeeze",
+                    trends,
+                    days,
+                    targetPrice: stockData[index].close,
+                    memo: `挤牌信号明确，卖出 [${stockData[index].trade_date} ${sdata[6][index]}]`,
+                };
+            }
         }
     }
 }

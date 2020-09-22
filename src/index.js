@@ -21,6 +21,7 @@ import MTM from "./indicators/mtm";
 import AO from "./indicators/ao";
 import SQUEEZE from "./indicators/squeeze";
 import TTMWave from "./indicators/ttmwave";
+import TTMTrend from "./indicators/ttmtrend";
 import Scalper from "./indicators/scalper";
 import utils from "./indicators/utils";
 
@@ -35,6 +36,7 @@ const indicators = {
     AO,
     SQUEEZE,
     TTMWave,
+    TTMTrend,
     Scalper,
 };
 
