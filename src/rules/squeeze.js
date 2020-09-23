@@ -64,9 +64,11 @@ function check(index, stockData, options, tsCode) {
                     hasSignals: true,
                     signal: "READY",
                     type: "squeeze",
-                    trends,
-                    days,
-                    targetPrice: stockData[index].close,
+                    squeeze: {
+                        days,
+                        trends,
+                    },
+                    // targetPrice: stockData[index].close,
                     memo: `挤牌信号，可考虑挤入 [${stockData[index].trade_date} ${sdata[6][index]}]`,
                 };
             }
@@ -81,9 +83,11 @@ function check(index, stockData, options, tsCode) {
                     hasSignals: true,
                     signal: "BUY",
                     type: "squeeze",
-                    trends,
-                    days,
-                    targetPrice: stockData[index].close,
+                    squeeze: {
+                        days,
+                        trends,
+                    },
+                    // targetPrice: stockData[index].close,
                     memo: `挤牌信号明确，买入 [${stockData[index].trade_date} ${sdata[6][index]}]`,
                 };
             }
@@ -100,9 +104,11 @@ function check(index, stockData, options, tsCode) {
                     tradeType: "sell",
                     signal: "SELL",
                     type: "squeeze",
-                    trends,
-                    days,
-                    targetPrice: stockData[index].close,
+                    squeeze: {
+                        days,
+                        trends,
+                    },
+                    // targetPrice: stockData[index].close,
                     memo: `挤牌信号明确，卖出 [${stockData[index].trade_date} ${sdata[6][index]}]`,
                 };
             }
@@ -247,20 +253,20 @@ async function createReports(results, options) {
     // results 当中按照signal进行了分组
     // 下面主要分析signal==="READY"情况下，时间的分布
     let readyList = results && results[SQUEEZE.states.READY];
-    // 1, 2, 3, 6, 12, 21, 34
-    // let boundaries = [1, 2, 3, 6, 12, 21, 34];
-    let days = [[], [], [], [], [], [], [], []];
+    // 1, 2, 3, 5, 8, 13
+    // let boundaries = [1, 2, 3, 5, 8, 13, _];
+    let days = [[], [], [], [], [], [], []];
     for (let item of readyList) {
-        let ready_days = item.days && item.days[0];
+        let ready_days =
+            item.squeeze && item.squeeze.days && item.squeeze.days[0];
         let i = 0;
         if (ready_days === 1) i = 0;
         else if (ready_days === 2) i = 1;
         else if (ready_days === 3) i = 2;
-        else if (ready_days > 3 && ready_days <= 6) i = 3;
-        else if (ready_days > 6 && ready_days <= 12) i = 4;
-        else if (ready_days > 12 && ready_days <= 21) i = 5;
-        else if (ready_days > 21 && ready_days <= 34) i = 6;
-        else i = 7;
+        else if (ready_days > 3 && ready_days <= 5) i = 3;
+        else if (ready_days > 5 && ready_days <= 8) i = 4;
+        else if (ready_days > 8 && ready_days <= 13) i = 5;
+        else i = 6;
 
         if (days[i]) {
             days[i].push(item.tsCode);
@@ -270,17 +276,17 @@ async function createReports(results, options) {
     }
 
     let buyList = results && results[SQUEEZE.states.BUY];
-    let bdays = [[], [], [], [], [], [], [], []];
+    let bdays = [[], [], [], [], [], [], []];
     for (let item of buyList) {
-        let buy_days = item.days && item.days[1];
+        let buy_days =
+            item.squeeze && item.squeeze.days && item.squeeze.days[1];
         let i = 0;
         if (buy_days === 1) i = 0;
         else if (buy_days === 2) i = 1;
         else if (buy_days === 3) i = 2;
-        else if (buy_days > 3 && buy_days <= 6) i = 3;
-        else if (buy_days > 6 && buy_days <= 12) i = 4;
-        else if (buy_days > 12 && buy_days <= 21) i = 5;
-        else if (buy_days > 21 && buy_days <= 34) i = 6;
+        else if (buy_days > 3 && buy_days <= 5) i = 3;
+        else if (buy_days > 5 && buy_days <= 8) i = 4;
+        else if (buy_days > 8 && buy_days <= 13) i = 5;
         else i = 7;
 
         if (bdays[i]) {

@@ -24,14 +24,12 @@ const log = console.log;
 const debug = debugpkg("search");
 
 function showOptionsInfo(options) {
-    console.log(
-        `测试数据周期: ${options.startDate}
+    let rules = options && options.match && options.match.rules;
+    console.log(`测试数据周期: ${options.startDate}`);
 
-模型：${options.match.rule}
-
-${options.match.rule.showOptions(options)}
-`
-    );
+    for (let rule of rules) {
+        console.log(`${rule.showOptions(options)}`);
+    }
 }
 
 async function search(options) {
@@ -79,25 +77,27 @@ async function search(options) {
 
             // 全部数据调整为前复权后再执行计算
             calculatePrevAdjPrice(stockData);
-
-            let rule = options && options.match && options.match.rule;
             debug(`执行算法！${stockData.data.length - 1}`);
-            let matched = rule.check(
-                stockData.data.length - 1,
-                stockData.data,
-                options,
-                stockItem.ts_code
-            );
-            if (matched && matched.hasSignals) {
-                log(
-                    `**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}, ${matched.days}`
+
+            let rules = options && options.match && options.match.rules;
+            for (let rule of rules) {
+                let matched = rule.check(
+                    stockData.data.length - 1,
+                    stockData.data,
+                    options,
+                    stockItem.ts_code
                 );
-                let signal = matched.signal;
-                if (signal) {
-                    if (signal in foundSignals) {
-                        foundSignals[signal].push(matched);
-                    } else {
-                        foundSignals[signal] = [matched];
+                if (matched && matched.hasSignals) {
+                    log(
+                        `**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}`
+                    );
+                    let signal = matched.signal;
+                    if (signal) {
+                        if (signal in foundSignals) {
+                            foundSignals[signal].push(matched);
+                        } else {
+                            foundSignals[signal] = [matched];
+                        }
                     }
                 }
             }
@@ -118,16 +118,7 @@ async function search(options) {
 
     let buyList = reports && reports.squeeze && reports.squeeze.buyList;
     let readyList = reports && reports.squeeze && reports.squeeze.readyList;
-    let boundaries = [
-        "1天",
-        "2天",
-        "3天",
-        "6天内",
-        "12天内",
-        "21天内",
-        "34天内",
-        "超过34天",
-    ];
+    let boundaries = ["1天", "2天", "3天", "5~8天", "8~13天", "超13天"];
     for (let i = 0; i < boundaries.length; i++) {
         log(
             `** 买入信号【${boundaries[i]}】： ${buyList && buyList[i].length}`

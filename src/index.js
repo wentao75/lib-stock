@@ -12,6 +12,7 @@ import * as reports from "./reports";
 import { formatFxstr } from "./util";
 
 import squeeze from "./rules/squeeze";
+import swing from "./rules/swing";
 
 import MA from "./indicators/ma";
 import ATR from "./indicators/atr";
@@ -48,6 +49,7 @@ const rules = {
     opensell,
     smashday,
     squeeze,
+    swing,
 };
 
 export {

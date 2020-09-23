@@ -1264,12 +1264,12 @@ const log$1 = console.log;
 const debug$4 = debugpkg("search");
 
 function showOptionsInfo$1(options) {
-  console.log(`测试数据周期: ${options.startDate}
+  let rules = options && options.match && options.match.rules;
+  console.log(`测试数据周期: ${options.startDate}`);
 
-模型：${options.match.rule}
-
-${options.match.rule.showOptions(options)}
-`);
+  for (let rule of rules) {
+    console.log(`${rule.showOptions(options)}`);
+  }
 }
 
 async function search(options) {
@@ -1305,19 +1305,22 @@ async function search(options) {
       stockData = await prepareStockData(stockData, options); // 全部数据调整为前复权后再执行计算
 
       calculatePrevAdjPrice$2(stockData);
-      let rule = options && options.match && options.match.rule;
       debug$4(`执行算法！${stockData.data.length - 1}`);
-      let matched = rule.check(stockData.data.length - 1, stockData.data, options, stockItem.ts_code);
+      let rules = options && options.match && options.match.rules;
 
-      if (matched && matched.hasSignals) {
-        log$1(`**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}, ${matched.days}`);
-        let signal = matched.signal;
+      for (let rule of rules) {
+        let matched = rule.check(stockData.data.length - 1, stockData.data, options, stockItem.ts_code);
 
-        if (signal) {
-          if (signal in foundSignals) {
-            foundSignals[signal].push(matched);
-          } else {
-            foundSignals[signal] = [matched];
+        if (matched && matched.hasSignals) {
+          log$1(`**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}, ${matched.days}`);
+          let signal = matched.signal;
+
+          if (signal) {
+            if (signal in foundSignals) {
+              foundSignals[signal].push(matched);
+            } else {
+              foundSignals[signal] = [matched];
+            }
           }
         }
       }
@@ -1337,7 +1340,7 @@ async function search(options) {
 
   let buyList = reports && reports.squeeze && reports.squeeze.buyList;
   let readyList = reports && reports.squeeze && reports.squeeze.readyList;
-  let boundaries = ["1天", "2天", "3天", "6天内", "12天内", "21天内", "34天内", "超过34天"];
+  let boundaries = ["1天", "2天", "3天", "5~8天", "8~13天", "超13天"];
 
   for (let i = 0; i < boundaries.length; i++) {
     log$1(`** 买入信号【${boundaries[i]}】： ${buyList && buyList[i].length}`);
@@ -2572,9 +2575,11 @@ function check$1(index, stockData, options, tsCode) {
           hasSignals: true,
           signal: "READY",
           type: "squeeze",
-          trends,
-          days,
-          targetPrice: stockData[index].close,
+          squeeze: {
+            days,
+            trends
+          },
+          // targetPrice: stockData[index].close,
           memo: `挤牌信号，可考虑挤入 [${stockData[index].trade_date} ${sdata[6][index]}]`
         };
       }
@@ -2589,9 +2594,11 @@ function check$1(index, stockData, options, tsCode) {
           hasSignals: true,
           signal: "BUY",
           type: "squeeze",
-          trends,
-          days,
-          targetPrice: stockData[index].close,
+          squeeze: {
+            days,
+            trends
+          },
+          // targetPrice: stockData[index].close,
           memo: `挤牌信号明确，买入 [${stockData[index].trade_date} ${sdata[6][index]}]`
         };
       }
@@ -2605,9 +2612,11 @@ function check$1(index, stockData, options, tsCode) {
           tradeType: "sell",
           signal: "SELL",
           type: "squeeze",
-          trends,
-          days,
-          targetPrice: stockData[index].close,
+          squeeze: {
+            days,
+            trends
+          },
+          // targetPrice: stockData[index].close,
           memo: `挤牌信号明确，卖出 [${stockData[index].trade_date} ${sdata[6][index]}]`
         };
       }
@@ -2728,15 +2737,15 @@ async function createReports(results, options) {
   if (_$1.isNil(results)) return; // results 当中按照signal进行了分组
   // 下面主要分析signal==="READY"情况下，时间的分布
 
-  let readyList = results && results[SQUEEZE.states.READY]; // 1, 2, 3, 6, 12, 21, 34
-  // let boundaries = [1, 2, 3, 6, 12, 21, 34];
+  let readyList = results && results[SQUEEZE.states.READY]; // 1, 2, 3, 5, 8, 13
+  // let boundaries = [1, 2, 3, 5, 8, 13, _];
 
-  let days = [[], [], [], [], [], [], [], []];
+  let days = [[], [], [], [], [], [], []];
 
   for (let item of readyList) {
-    let ready_days = item.days && item.days[0];
+    let ready_days = item.squeeze && item.squeeze.days && item.squeeze.days[0];
     let i = 0;
-    if (ready_days === 1) i = 0;else if (ready_days === 2) i = 1;else if (ready_days === 3) i = 2;else if (ready_days > 3 && ready_days <= 6) i = 3;else if (ready_days > 6 && ready_days <= 12) i = 4;else if (ready_days > 12 && ready_days <= 21) i = 5;else if (ready_days > 21 && ready_days <= 34) i = 6;else i = 7;
+    if (ready_days === 1) i = 0;else if (ready_days === 2) i = 1;else if (ready_days === 3) i = 2;else if (ready_days > 3 && ready_days <= 5) i = 3;else if (ready_days > 5 && ready_days <= 8) i = 4;else if (ready_days > 8 && ready_days <= 13) i = 5;else i = 6;
 
     if (days[i]) {
       days[i].push(item.tsCode);
@@ -2746,12 +2755,12 @@ async function createReports(results, options) {
   }
 
   let buyList = results && results[SQUEEZE.states.BUY];
-  let bdays = [[], [], [], [], [], [], [], []];
+  let bdays = [[], [], [], [], [], [], []];
 
   for (let item of buyList) {
-    let buy_days = item.days && item.days[1];
+    let buy_days = item.squeeze && item.squeeze.days && item.squeeze.days[1];
     let i = 0;
-    if (buy_days === 1) i = 0;else if (buy_days === 2) i = 1;else if (buy_days === 3) i = 2;else if (buy_days > 3 && buy_days <= 6) i = 3;else if (buy_days > 6 && buy_days <= 12) i = 4;else if (buy_days > 12 && buy_days <= 21) i = 5;else if (buy_days > 21 && buy_days <= 34) i = 6;else i = 7;
+    if (buy_days === 1) i = 0;else if (buy_days === 2) i = 1;else if (buy_days === 3) i = 2;else if (buy_days > 3 && buy_days <= 5) i = 3;else if (buy_days > 5 && buy_days <= 8) i = 4;else if (buy_days > 8 && buy_days <= 13) i = 5;else i = 7;
 
     if (bdays[i]) {
       bdays[i].push(item.tsCode);
@@ -2780,6 +2789,223 @@ const squeeze$1 = {
   check: check$1,
   showOptions: showOptions$6,
   createReports
+};
+
+/**
+ * 推进器交易，波段
+ *
+ */
+const debug$c = debugpkg("engine");
+const RULE_NAME$4 = "swing";
+const SWING_DATA = Symbol("SWING_DATA");
+
+function calculateSwing(stockData, {
+  n = 8,
+  m = 21,
+  l = 50,
+  digits = 3
+} = {}) {
+  if (_$1.isNil(stockData)) return;
+  let type = "ema";
+  let source = "close";
+
+  if (_$1.isNil(stockData[SWING_DATA])) {
+    let ma1 = MA.calculate(stockData, {
+      n,
+      source,
+      type,
+      digits
+    });
+    let ma2 = MA.calculate(stockData, {
+      m,
+      source,
+      type,
+      digits
+    });
+    let ma3 = MA.calculate(stockData, {
+      l,
+      source,
+      type,
+      digits
+    });
+    stockData[SWING_DATA] = [ma1, ma2, ma3];
+  }
+}
+
+function checkSwing(index, stockData, options, tsCode) {
+  let opt = options && options.swing;
+  calculateSwing(stockData, opt);
+  let range = opt && opt.range || 8;
+  let earn1 = opt && opt.earn1 || 0.04;
+  let earn2 = opt && opt.earn2 || 0.08;
+  let loss = opt && opt.loss || 0.04;
+  let data = stockData[SWING_DATA];
+  if (!data || !data[0] || !data[1]) return;
+
+  if (stockData && _$1.isArray(stockData) && index < stockData.length && index >= 0) {
+    let tradeDate = stockData[index].trade_date; // 找到ma1<=ma2 && ma1>ma2的交叉日，这是READY状态；注意READY状态不能太远，考虑仅查找最多8天
+    // READY后，如果 ma1 >= daily.low，则发生“回撤”，进入BUY状态，设定目标
+
+    let ma1 = data[0];
+    let ma2 = data[1];
+    if (ma1[index] <= ma2[index]) return;
+    let ready_days = 1;
+
+    for (let i = 0; i < range; i++) {
+      if (ma1[index - i - 1] <= ma2[index - i - 1]) {
+        ready_days = i + 1;
+        break;
+      }
+    }
+
+    let pullback_days = 0;
+    let times = 0;
+    let state = 0;
+    let lossState = 0;
+    let target = 0;
+    let ruleTarget = 0;
+    let maxLoss = 0;
+
+    for (let i = index - ready_days + 1; i <= index; i++) {
+      // 当天开始是交易状态，首先完成交易
+      if (state === 1) {
+        // 交易过程状态，等待止损或者改变条件
+        if (lossState === 1 && maxLoss >= tradeDate[i].high || lossState === 2 && ma2[i] >= tradeDate[i].high) {
+          // 触发止损
+          state = 9;
+        } else if (lossState === 1 && ruleTarget <= tradeDate[i].high) {
+          // 止损规则目标达成，这时调整止损规则到跟随ma2
+          lossState = 2;
+        } else if (target <= tradeDate[i].high) {
+          // 达到
+          state = 0;
+        }
+      } // 状态为等待回调，确定是否可以交易，每次交易表示一个周期增加
+
+
+      if (state === 0 && ma1[i] >= tradeDate[i].low) {
+        // 等待机会并且触发
+        // 触发回调
+        target1 = ma1[i] * (1 + earn1);
+        target2 = ma1[i] * (1 + earn2); // 止损初期采用固定比例和ma2价格低的那个
+
+        maxLoss = Math.min(ma1[i] * (1 - loss), ma2[i]);
+        lossState = 1;
+
+        if (pullback_days <= 0) {
+          pullback_days = i + 1;
+        }
+
+        times++;
+        state = 1;
+        pullback_days = index - i + 1;
+      }
+
+      if (state === 9 && tradeDate[i].close > ma1[i]) {
+        // 价格重新进入等待回调状态
+        state = 0;
+      }
+    }
+
+    let signal = state === 0 ? "READY" : state === 1 ? "BUY" : "LOSS";
+    let memo = "";
+    let targets = ["--", "--"];
+
+    if (state === 1) {
+      targets[0] = utils.toFixed(target1, 2);
+
+      if (lossState === 1) {
+        targets[1] = utils.toFixed(maxLoss, 2);
+      } else if (lossState === 2) {
+        target[1] = utils.toFixed(ma2[index], 2);
+      }
+    } else if (state === 0 || state === 9) {
+      targets[0] = utils.toFixed(ma1[index], 2);
+    }
+
+    if (state === 0) {
+      memo = `波段：等待回调，目标 ¥${targets[0]}，持续${ready_days}天`;
+    } else if (state === 1) {
+      memo = `波段：已买入，目标价位 ¥${targets[0]}， ${lossState === 1 ? "初始止损" : "跟随止损"} ¥${targets[1]}}`;
+    } else if (state === 9) {
+      memo = `波段：发生止损，等待下一次回调，目标 ${targets[0]}`;
+    }
+
+    return {
+      tsCode,
+      dataIndex: index,
+      date: tradeDate,
+      tradeType: "signal",
+      hasSignals: true,
+      signal,
+      type: "swing",
+      swing: {
+        days: [ready_days, pullback_days],
+        times,
+        state,
+        lossState,
+        targets
+      },
+      memo
+    };
+  }
+}
+
+function check$2(index, stockData, options, tsCode) {
+  let ret = checkSwing(index, stockData, options, tsCode);
+  if (!ret) return; // 只有等待回调的阶段需要进入返回列表
+
+  if (ret.swing && ret.swing.state !== 0) return;
+  return ret;
+}
+
+function checkBuyTransaction$4(stockInfo, balance, index, stockData, options) {
+  debug$c(`检查波段买入：${index}, ${balance}`);
+  if (balance <= 0) return;
+  let ret = checkSwing(index, stockData, options, stockInfo.ts_code);
+  if (!ret) return;
+  let state = ret && ret.swing && ret.swing.state;
+  let data = stockData[index];
+}
+
+function checkSellTransaction$4(stockInfo, stock, index, stockData, options) {
+  if (_$1.isNil(stock) || stock.count <= 0) return;
+  let ret = checkSwing(index, stockData, options, stockInfo.ts_code);
+  if (!ret) return;
+}
+/**
+ * 返回参数配置的显示信息
+ * @param {*}} opions 参数配置
+ */
+
+
+function showOptions$7(options) {
+  let opt = options && options.swing;
+  return `
+模型 ${swing.name}[${swing.label}] 参数：
+均线1: ${opt.n},  均线2: ${opt.m}
+`;
+}
+
+async function createReports$1(results, options) {
+  if (_$1.isNil(results)) return;
+  let reports = {
+    updateTime: moment$1().toISOString(),
+    swing: {}
+  };
+  return reports;
+}
+
+const swing = {
+  name: "波段交易",
+  label: RULE_NAME$4,
+  description: "波段选择",
+  methodTypes: {},
+  checkBuyTransaction: checkBuyTransaction$4,
+  checkSellTransaction: checkSellTransaction$4,
+  check: check$2,
+  showOptions: showOptions$7,
+  createReports: createReports$1
 };
 
 /**
@@ -3129,7 +3355,8 @@ const rules = {
   outsideday,
   opensell,
   smashday,
-  squeeze: squeeze$1
+  squeeze: squeeze$1,
+  swing
 };
 
 export { engine, favorites, formatFxstr, indicators, reports, rules, search$1 as search, simulate, utils };
