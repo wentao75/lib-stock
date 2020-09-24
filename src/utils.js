@@ -39,9 +39,9 @@ function calculatePrevAdjPrice(dailyData, digits = 3) {
     if (dailyData && dailyData.length > 0 && !dailyData[ADJUSTED]) {
         dailyData.forEach((item) => {
             if (item.prevadj_factor && !item.origin) {
-                console.log(
-                    `复权前 ${item.trade_date}, ${item.open}, ${item.close}`
-                );
+                // console.log(
+                //     `复权前 ${item.trade_date}, ${item.open}, ${item.close}`
+                // );
                 item.origin = {
                     open: item.open,
                     close: item.close,
@@ -62,9 +62,9 @@ function calculatePrevAdjPrice(dailyData, digits = 3) {
                     item.change * item.prevadj_factor,
                     digits
                 );
-                console.log(
-                    `复权后 ${item.trade_date}, ${item.open}, ${item.close}`
-                );
+                // console.log(
+                //     `复权后 ${item.trade_date}, ${item.open}, ${item.close}`
+                // );
             }
         });
         dailyData[ADJUSTED] = true;

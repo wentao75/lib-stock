@@ -42,15 +42,26 @@ function checkTradeData(data, digits = 3) {
 function calculatePrevAdjPrice(dailyData, digits = 3) {
   if (dailyData && dailyData.length > 0 && !dailyData[ADJUSTED]) {
     dailyData.forEach(item => {
-      if (item.prevadj_factor) {
-        console.log(`复权前 ${item.trade_date}, ${item.open}, ${item.close}`);
+      if (item.prevadj_factor && !item.origin) {
+        // console.log(
+        //     `复权前 ${item.trade_date}, ${item.open}, ${item.close}`
+        // );
+        item.origin = {
+          open: item.open,
+          close: item.close,
+          high: item.high,
+          low: item.low,
+          pre_close: item.pre_close,
+          change: item.change
+        };
         item.open = toFixed(item.open * item.prevadj_factor, digits);
         item.close = toFixed(item.close * item.prevadj_factor, digits);
         item.high = toFixed(item.high * item.prevadj_factor, digits);
         item.low = toFixed(item.low * item.prevadj_factor, digits);
         item.pre_close = toFixed(item.pre_close * item.prevadj_factor, digits);
-        item.change = toFixed(item.change * item.prevadj_factor, digits);
-        console.log(`复权后 ${item.trade_date}, ${item.open}, ${item.close}`);
+        item.change = toFixed(item.change * item.prevadj_factor, digits); // console.log(
+        //     `复权后 ${item.trade_date}, ${item.open}, ${item.close}`
+        // );
       }
     });
     dailyData[ADJUSTED] = true;
@@ -283,7 +294,7 @@ async function executeTransaction(index, stockData, capitalData, options) {
 
     while (stockId < stocks.length) {
       let stock = stocks[stockId];
-      debug(`卖出股票信息: %o`, stock);
+      debug(`检查卖出股票信息: %o`, stock);
       let sold = false;
 
       for (let rule of sellRules) {
@@ -1165,9 +1176,15 @@ async function simulate(options) {
       // }, 从${stockData.startDate}到${
       //     stockData.endDate
       // }，
+      // log(
+      //     `*** 01: ${stockData.data[440].trade_date}, ${stockData.data[440].open}`
+      // );
       // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
 
-      stockData = await filterStockData(stockData, options); // 全部数据调整为前复权后再执行计算
+      stockData = await filterStockData(stockData, options); // log(
+      //     `*** 02: ${stockData.data[0].trade_date}, ${stockData.data[0].open}`
+      // );
+      // 全部数据调整为前复权后再执行计算
       // calculatePrevAdjPrice(stockData);
       // 开始按照日期执行交易算法
 
@@ -1345,7 +1362,7 @@ async function search(options) {
       let rules = options && options.match && options.match.rules;
 
       for (let rule of rules) {
-        let matched = rule.check(stockData.data.length - 1, stockData.data, options, stockItem.ts_code);
+        let matched = rule.check(stockData.data.length - 1, stockData.data, options, stockItem.ts_code); // log(`ret: %o`, matched);
 
         if (matched && matched.hasSignals) {
           log$1(`**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}`);
@@ -2946,10 +2963,8 @@ function calculateSwing(stockData, {
             lossTarget = 0;
             target = 0;
             ruleTarget = 0;
-          } // 交易跟踪，到达预期价位成交
-
-
-          if (currentState.state === 1 && data.high >= target) {
+          } else if (currentState.state === 1 && data.high >= target && target > 0) {
+            // 交易跟踪，到达预期价位成交
             // 目标价位达到
             let price = currentState.targets[0];
             price = Math.max(data.low, price);
@@ -2981,7 +2996,7 @@ function calculateSwing(stockData, {
               target = price * (1 + earn2);
               ruleTarget = price * (1 + earn1);
               pullback_days = 1;
-              debug$c(`** ${data.trade_date} 回调发生，交易：${price}, 目标 ${target}, 止损 ${lossTarget}, ${ruleTarget}; [${ma1[index]} ,${ma2[index]}, ${data.high}, ${data.low}]`);
+              debug$c(`** ${data.trade_date} 回调发生，交易：${price}, 目标 ${target}, 止损 ${lossTarget}, ${ruleTarget}; [${ma1[index]} ,${ma2[index]}, ${data.open}, ${data.high}, ${data.low}, ${data.close}]`);
             }
           } // 对于今日调整到初始状态的，最后检查是否进入回调等待阶段
 
@@ -3029,7 +3044,7 @@ function calculateSwing(stockData, {
 function checkSwing(index, stockData, options, tsCode) {
   let opt = options && options.swing;
   calculateSwing(stockData, opt);
-  let swingData = stockData[SWING_DATA];
+  let swingData = stockData[SWING_DATA][0];
 
   if (swingData && _$1.isArray(swingData) && index < swingData.length && index >= 0) {
     let data = swingData[index];
@@ -3039,11 +3054,11 @@ function checkSwing(index, stockData, options, tsCode) {
       let memo;
 
       if (state === 0) {
-        memo = `波段：等待回调，目标 ¥${data.targets[0]}，持续${data.days[0]}天`;
+        memo = `波段：等待回调，目标 ¥${utils.toFixed(data.targets[0], 2)}，持续${data.days[0]}天`;
       } else if (state === 1) {
-        memo = `波段：已买入，目标价位 ¥${data.targets[0]}， ${data.lossState === 1 ? "初始止损" : "跟随止损"} ¥${data.targets[1]}}`;
+        memo = `波段：已买入，目标价位 ¥${utils.toFixed(data.targets[0], 2)}， ${data.lossState === 1 ? "初始止损" : "跟随止损"} ¥${utils.toFixed(data.targets[1], 2)}}`;
       } else if (state === 9) {
-        memo = `波段：发生止损，等待下一次回调，目标 ${data.targets[0]}`;
+        memo = `波段：发生止损，等待下一次回调，目标 ${utils.toFixed(data.targets[0], 2)}`;
       }
 
       return {
@@ -3055,11 +3070,11 @@ function checkSwing(index, stockData, options, tsCode) {
         signal: state === 0 ? "READY" : state === 1 ? "BUY" : state === 9 ? "PULLBACK" : "NA",
         type: "swing",
         swing: {
-          days: swing.days,
-          times: swing.times,
-          state: swing.state,
-          lossState: swing.lossState,
-          targets: swing.targets
+          days: data.days,
+          times: data.times,
+          state: data.state,
+          lossState: data.lossState,
+          targets: data.targets
         },
         memo
       };
@@ -3180,11 +3195,13 @@ function checkSwing(index, stockData, options, tsCode) {
 }
 
 function check$2(index, stockData, options, tsCode) {
-  let ret = checkSwing(index, stockData, options, tsCode);
+  let ret = checkSwing(index, stockData, options, tsCode); // console.log(`检查${index}波段结果：%o`, ret);
+
   if (!ret) return; // 只有等待回调的阶段需要进入返回列表
 
-  if (ret.swing && ret.swing.state !== 0) return;
-  return ret;
+  if (ret.swing && ret.swing.state !== 0) {
+    return ret;
+  }
 } // function readContext(index, stockData) {
 //     if (!stockData || !_.isArray(stockData)) return;
 //     if (index < stockData.length && index >= 0) {
@@ -3213,10 +3230,11 @@ function checkBuyTransaction$4(stockInfo, balance, index, stockData, options) {
   debug$c(`检查波段买入：${index}, ${balance}`);
   if (balance <= 0) return;
   calculateSwing(stockData, options && options.swing);
-  let swingData = stockData[SWING_DATA];
+  let swingData = stockData[SWING_DATA] && stockData[SWING_DATA][0];
 
   if (swingData && _$1.isArray(swingData) && index < swingData.length && index >= 0) {
     let data = swingData[index];
+    debug$c(`swing data 买入检查: ${index}, %o`, data);
 
     if (!_$1.isEmpty(data.trans)) {
       let currentData = stockData[index];
@@ -3233,12 +3251,14 @@ function checkBuyTransaction$4(stockInfo, balance, index, stockData, options) {
 }
 
 function checkSellTransaction$4(stockInfo, stock, index, stockData, options) {
+  debug$c(`检查波段卖出：${index}, ${stock.count}`);
   if (_$1.isNil(stock) || stock.count <= 0) return;
   calculateSwing(stockData, options && options.swing);
-  let swingData = stockData[SWING_DATA];
+  let swingData = stockData[SWING_DATA] && stockData[SWING_DATA][0];
 
   if (swingData && _$1.isArray(swingData) && index < swingData.length && index >= 0) {
     let data = swingData[index];
+    debug$c(`swing data 卖出检查: ${index}, %o`, data);
 
     if (!_$1.isEmpty(data.trans)) {
       let currentData = stockData[index];

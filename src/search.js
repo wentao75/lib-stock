@@ -87,6 +87,7 @@ async function search(options) {
                     options,
                     stockItem.ts_code
                 );
+                // log(`ret: %o`, matched);
                 if (matched && matched.hasSignals) {
                     log(
                         `**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}`

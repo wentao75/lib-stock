@@ -39,7 +39,7 @@ async function executeTransaction(index, stockData, capitalData, options) {
         let stockId = 0;
         while (stockId < stocks.length) {
             let stock = stocks[stockId];
-            debug(`卖出股票信息: %o`, stock);
+            debug(`检查卖出股票信息: %o`, stock);
 
             let sold = false;
             for (let rule of sellRules) {

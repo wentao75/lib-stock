@@ -116,8 +116,14 @@ async function simulate(options) {
             //     stockData.endDate
             // }，
 
+            // log(
+            //     `*** 01: ${stockData.data[440].trade_date}, ${stockData.data[440].open}`
+            // );
             // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
             stockData = await filterStockData(stockData, options);
+            // log(
+            //     `*** 02: ${stockData.data[0].trade_date}, ${stockData.data[0].open}`
+            // );
 
             // 全部数据调整为前复权后再执行计算
             // calculatePrevAdjPrice(stockData);

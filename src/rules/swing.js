@@ -4,7 +4,7 @@
  */
 import _ from "lodash";
 import moment from "moment";
-// import utils from "../utils";
+import utils from "../utils";
 import trans from "../transaction";
 import debugpkg from "debug";
 import { getDataRoot } from "@wt/lib-wtda-query";
@@ -167,10 +167,12 @@ function calculateSwing(
                         lossTarget = 0;
                         target = 0;
                         ruleTarget = 0;
-                    }
-
-                    // 交易跟踪，到达预期价位成交
-                    if (currentState.state === 1 && data.high >= target) {
+                    } else if (
+                        currentState.state === 1 &&
+                        data.high >= target &&
+                        target > 0
+                    ) {
+                        // 交易跟踪，到达预期价位成交
                         // 目标价位达到
                         let price = currentState.targets[0];
                         price = Math.max(data.low, price);
@@ -204,7 +206,7 @@ function calculateSwing(
                             ruleTarget = price * (1 + earn1);
                             pullback_days = 1;
                             debug(
-                                `** ${data.trade_date} 回调发生，交易：${price}, 目标 ${target}, 止损 ${lossTarget}, ${ruleTarget}; [${ma1[index]} ,${ma2[index]}, ${data.high}, ${data.low}]`
+                                `** ${data.trade_date} 回调发生，交易：${price}, 目标 ${target}, 止损 ${lossTarget}, ${ruleTarget}; [${ma1[index]} ,${ma2[index]}, ${data.open}, ${data.high}, ${data.low}, ${data.close}]`
                             );
                         }
                     }
@@ -255,7 +257,7 @@ function checkSwing(index, stockData, options, tsCode) {
     let opt = options && options.swing;
     calculateSwing(stockData, opt);
 
-    let swingData = stockData[SWING_DATA];
+    let swingData = stockData[SWING_DATA][0];
     if (
         swingData &&
         _.isArray(swingData) &&
@@ -267,13 +269,22 @@ function checkSwing(index, stockData, options, tsCode) {
             let state = data.state;
             let memo;
             if (state === 0) {
-                memo = `波段：等待回调，目标 ¥${data.targets[0]}，持续${data.days[0]}天`;
+                memo = `波段：等待回调，目标 ¥${utils.toFixed(
+                    data.targets[0],
+                    2
+                )}，持续${data.days[0]}天`;
             } else if (state === 1) {
-                memo = `波段：已买入，目标价位 ¥${data.targets[0]}， ${
+                memo = `波段：已买入，目标价位 ¥${utils.toFixed(
+                    data.targets[0],
+                    2
+                )}， ${
                     data.lossState === 1 ? "初始止损" : "跟随止损"
-                } ¥${data.targets[1]}}`;
+                } ¥${utils.toFixed(data.targets[1], 2)}}`;
             } else if (state === 9) {
-                memo = `波段：发生止损，等待下一次回调，目标 ${data.targets[0]}`;
+                memo = `波段：发生止损，等待下一次回调，目标 ${utils.toFixed(
+                    data.targets[0],
+                    2
+                )}`;
             }
 
             return {
@@ -292,11 +303,11 @@ function checkSwing(index, stockData, options, tsCode) {
                         : "NA",
                 type: "swing",
                 swing: {
-                    days: swing.days,
-                    times: swing.times,
-                    state: swing.state,
-                    lossState: swing.lossState,
-                    targets: swing.targets,
+                    days: data.days,
+                    times: data.times,
+                    state: data.state,
+                    lossState: data.lossState,
+                    targets: data.targets,
                 },
                 memo,
             };
@@ -431,10 +442,12 @@ function checkSwing(index, stockData, options, tsCode) {
 
 function check(index, stockData, options, tsCode) {
     let ret = checkSwing(index, stockData, options, tsCode);
+    // console.log(`检查${index}波段结果：%o`, ret);
     if (!ret) return;
     // 只有等待回调的阶段需要进入返回列表
-    if (ret.swing && ret.swing.state !== 0) return;
-    return ret;
+    if (ret.swing && ret.swing.state !== 0) {
+        return ret;
+    }
 }
 
 // function readContext(index, stockData) {
@@ -467,7 +480,7 @@ function checkBuyTransaction(stockInfo, balance, index, stockData, options) {
 
     calculateSwing(stockData, options && options.swing);
 
-    let swingData = stockData[SWING_DATA];
+    let swingData = stockData[SWING_DATA] && stockData[SWING_DATA][0];
     if (
         swingData &&
         _.isArray(swingData) &&
@@ -475,6 +488,7 @@ function checkBuyTransaction(stockInfo, balance, index, stockData, options) {
         index >= 0
     ) {
         let data = swingData[index];
+        debug(`swing data 买入检查: ${index}, %o`, data);
         if (!_.isEmpty(data.trans)) {
             let currentData = stockData[index];
             let tradeDate = currentData.trade_date;
@@ -497,11 +511,12 @@ function checkBuyTransaction(stockInfo, balance, index, stockData, options) {
 }
 
 function checkSellTransaction(stockInfo, stock, index, stockData, options) {
+    debug(`检查波段卖出：${index}, ${stock.count}`);
     if (_.isNil(stock) || stock.count <= 0) return;
 
     calculateSwing(stockData, options && options.swing);
 
-    let swingData = stockData[SWING_DATA];
+    let swingData = stockData[SWING_DATA] && stockData[SWING_DATA][0];
     if (
         swingData &&
         _.isArray(swingData) &&
@@ -509,6 +524,7 @@ function checkSellTransaction(stockInfo, stock, index, stockData, options) {
         index >= 0
     ) {
         let data = swingData[index];
+        debug(`swing data 卖出检查: ${index}, %o`, data);
         if (!_.isEmpty(data.trans)) {
             let currentData = stockData[index];
             let tradeDate = currentData.trade_date;
