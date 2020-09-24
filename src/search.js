@@ -9,12 +9,12 @@ import moment from "moment";
 import _ from "lodash";
 import debugpkg from "debug";
 
-import utils from "./indicators/utils";
+import utils from "./utils";
 
-import { formatFxstr } from "./util";
+// import { calculatePrevAdjPrice } from "./util";
 
-import engine from "./transaction-engine";
-import trans from "./transaction";
+// import engine from "./transaction-engine";
+// import trans from "./transaction";
 
 const path = require("path");
 const fs = require("fs");
@@ -75,8 +75,8 @@ async function search(options) {
             // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
             stockData = await prepareStockData(stockData, options);
 
-            // 全部数据调整为前复权后再执行计算
-            calculatePrevAdjPrice(stockData);
+            // 全部数据调整为前复权后再执行计算，不再需要
+            // calculatePrevAdjPrice(stockData);
             debug(`执行算法！${stockData.data.length - 1}`);
 
             let rules = options && options.match && options.match.rules;
@@ -175,39 +175,6 @@ async function readReports() {
 }
 
 /**
- * 将日线数据中的历史价位根据复权因子全部处理为前复权结果，方便后续计算
- *
- * @param {*} dailyData 日线数据
- * @param {int} digits 保留位数
- */
-function calculatePrevAdjPrice(dailyData, digits = 2) {
-    if (dailyData && dailyData.data && dailyData.data.length > 0) {
-        dailyData.data.forEach((item) => {
-            if (item.prevadj_factor) {
-                item.open = Number(
-                    (item.open * item.prevadj_factor).toFixed(digits)
-                );
-                item.close = Number(
-                    (item.close * item.prevadj_factor).toFixed(digits)
-                );
-                item.high = Number(
-                    (item.high * item.prevadj_factor).toFixed(digits)
-                );
-                item.low = Number(
-                    (item.low * item.prevadj_factor).toFixed(digits)
-                );
-                item.pre_close = Number(
-                    (item.pre_close * item.prevadj_factor).toFixed(digits)
-                );
-                item.change = Number(
-                    (item.change * item.prevadj_factor).toFixed(digits)
-                );
-            }
-        });
-    }
-}
-
-/**
  * 这里定义一个过滤列表的接口方法，利用options来过滤后续使用的股票
  * 返回为一个符合条件的列表
  * 这里后续考虑调整一下接口定义，目前暂时简化处理
@@ -231,7 +198,7 @@ async function filterStockList(stockList, options) {
  * @param {*} options 数据过滤条件
  */
 async function prepareStockData(stockData, options) {
-    utils.checkTradeData(stockData.data);
+    utils.checkTradeData(stockData && stockData.data);
 
     if (stockData && stockData.data && stockData.data.length > 0) {
         if (stockData.data[0].trade_date < options.startDate) {

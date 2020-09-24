@@ -12,7 +12,7 @@
  *  type: TTM | HA
  */
 import _ from "lodash";
-import utils from "./utils";
+import utils from "../utils";
 
 /**
  * 计算每日的趋势情况，返回值设置为涨或跌，用1和0表示

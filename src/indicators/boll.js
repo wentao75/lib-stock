@@ -8,7 +8,7 @@
  *  ma: 移动平均类型，ma | ema
  *
  */
-import utils from "./utils";
+import utils from "../utils";
 import MA from "./ma";
 
 function boll(tradeData, options) {

@@ -1,6 +1,7 @@
 import _ from "lodash";
 
 const ORGANIZED = Symbol("表示数据是否经过检查和整理");
+const ADJUSTED = Symbol("已经复权处理");
 
 /**
  * 对交易数据按照结构进行检查，检查后需要满足
@@ -35,9 +36,20 @@ function checkTradeData(data, digits = 3) {
  * @param {int} digits 保留位数
  */
 function calculatePrevAdjPrice(dailyData, digits = 3) {
-    if (dailyData && dailyData.length > 0) {
+    if (dailyData && dailyData.length > 0 && !dailyData[ADJUSTED]) {
         dailyData.forEach((item) => {
-            if (item.prevadj_factor) {
+            if (item.prevadj_factor && !item.origin) {
+                console.log(
+                    `复权前 ${item.trade_date}, ${item.open}, ${item.close}`
+                );
+                item.origin = {
+                    open: item.open,
+                    close: item.close,
+                    high: item.high,
+                    low: item.low,
+                    pre_close: item.pre_close,
+                    change: item.change,
+                };
                 item.open = toFixed(item.open * item.prevadj_factor, digits);
                 item.close = toFixed(item.close * item.prevadj_factor, digits);
                 item.high = toFixed(item.high * item.prevadj_factor, digits);
@@ -50,8 +62,12 @@ function calculatePrevAdjPrice(dailyData, digits = 3) {
                     item.change * item.prevadj_factor,
                     digits
                 );
+                console.log(
+                    `复权后 ${item.trade_date}, ${item.open}, ${item.close}`
+                );
             }
         });
+        dailyData[ADJUSTED] = true;
     }
 }
 
@@ -229,7 +245,12 @@ function stdev(array, n, prop, digits = 3) {
     }
 }
 
+function formatFxstr(num) {
+    return num.toLocaleString("zh-CN"); //, { style: "currency", currency: "CNY" });
+}
+
 export default {
+    formatFxstr,
     average,
     ma,
     sma,

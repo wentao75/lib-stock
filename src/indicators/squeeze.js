@@ -20,7 +20,7 @@ import BOLL from "./boll";
 import MTM from "./mtm";
 // import AO from "./ao";
 import TTMWave from "./ttmwave";
-import utils from "./utils";
+import utils from "../utils";
 
 const READY = "READY";
 const REST = "--";

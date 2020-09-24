@@ -6,7 +6,7 @@
  *  source: close | ohlc
  */
 import _ from "lodash";
-import utils from "./utils";
+import utils from "../utils";
 
 /**
  * 计算移动平均，返回ma数据

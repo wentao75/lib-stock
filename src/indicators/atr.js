@@ -12,7 +12,7 @@
  */
 
 import _ from "lodash";
-import utils from "./utils";
+import utils from "../utils";
 
 /**
  * 计算ATR指标

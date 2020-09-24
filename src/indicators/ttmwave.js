@@ -16,7 +16,7 @@
  */
 
 import _ from "lodash";
-import utils from "./utils";
+import utils from "../utils";
 
 function subtract(array1, array2, digits) {
     if (

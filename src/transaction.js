@@ -1,5 +1,6 @@
 import _ from "lodash";
-import { formatFxstr } from "./util";
+import utils from "./utils";
+// import { formatFxstr } from "./util";
 import debugpkg from "debug";
 
 const debug = debugpkg("transaction");
@@ -282,27 +283,27 @@ function showCapitalReports(log, capitalData) {
             stockvalue += stock.count * stock.price;
         }
         log(
-            `  账户价值 ${formatFxstr(
+            `  账户价值 ${utils.formatFxstr(
                 capitalData.balance + stockvalue
-            )}元  【余额 ${formatFxstr(
+            )}元  【余额 ${utils.formatFxstr(
                 capitalData.balance
-            )}元, 持股: ${formatFxstr(stockvalue)}元】`
+            )}元, 持股: ${utils.formatFxstr(stockvalue)}元】`
         );
     } else {
-        log(`  账户余额 ${formatFxstr(capitalData.balance)}元`);
+        log(`  账户余额 ${utils.formatFxstr(capitalData.balance)}元`);
     }
 
     let capitalResult = parseCapitalReports(capitalData);
     // log(``);
     log(
-        `  总净利润：${formatFxstr(capitalResult.total_profit)},  收益率 ${(
-            capitalResult.ror * 100
-        ).toFixed(2)}%`
+        `  总净利润：${utils.formatFxstr(
+            capitalResult.total_profit
+        )},  收益率 ${(capitalResult.ror * 100).toFixed(2)}%`
     );
     log(
-        `  毛利润： ${formatFxstr(
+        `  毛利润： ${utils.formatFxstr(
             capitalResult.total_win
-        )},  总亏损：${formatFxstr(capitalResult.total_loss)}`
+        )},  总亏损：${utils.formatFxstr(capitalResult.total_loss)}`
     );
     log(
         `  盈利收益率： ${(capitalResult.ror_win * 100).toFixed(
@@ -321,19 +322,19 @@ function showCapitalReports(log, capitalData) {
     );
     log("");
     log(
-        `  最大单笔盈利： ${formatFxstr(
+        `  最大单笔盈利： ${utils.formatFxstr(
             capitalResult.max_profit
-        )},  最大单笔亏损：${formatFxstr(capitalResult.max_loss)}`
+        )},  最大单笔亏损：${utils.formatFxstr(capitalResult.max_loss)}`
     );
     log(
-        `  平均盈利： ${formatFxstr(
+        `  平均盈利： ${utils.formatFxstr(
             capitalResult.average_win
-        )},  平均亏损：${formatFxstr(capitalResult.average_loss)}`
+        )},  平均亏损：${utils.formatFxstr(capitalResult.average_loss)}`
     );
     log(
         `  平均盈利/平均亏损： ${(
             capitalResult.average_win / capitalResult.average_loss
-        ).toFixed(2)},  平均每笔总盈利：${formatFxstr(
+        ).toFixed(2)},  平均每笔总盈利：${utils.formatFxstr(
             capitalResult.average_profit
         )}`
     );
@@ -408,25 +409,25 @@ function logTransaction(translog) {
     let buy = translog.buy;
     let sell = translog.sell;
     if (sell) {
-        return `收入：${formatFxstr(translog.profit)}, 持有 ${
+        return `收入：${utils.formatFxstr(translog.profit)}, 持有 ${
             sell.dateIndex - buy.dateIndex + 1
         }天，盈利 ${(-(translog.profit * 100) / buy.total).toFixed(2)}%, ${
             translog.transeq
         }
-       [买入 ${buy.date}, ${formatFxstr(buy.price)}, ${
+       [买入 ${buy.date}, ${utils.formatFxstr(buy.price)}, ${
             buy.count
-        }, ${formatFxstr(buy.total)}, ${buy.transeq}] 
-       [卖出 ${sell.date}, ${formatFxstr(sell.price)}, ${
+        }, ${utils.formatFxstr(buy.total)}, ${buy.transeq}] 
+       [卖出 ${sell.date}, ${utils.formatFxstr(sell.price)}, ${
             sell.count
-        }, ${formatFxstr(sell.total)}, ${sell.methodType}, ${sell.memo}, ${
-            sell.transeq
-        }]`;
+        }, ${utils.formatFxstr(sell.total)}, ${sell.methodType}, ${
+            sell.memo
+        }, ${sell.transeq}]`;
     } else {
         // 持有未卖出
         return `收入：---, 持有 ---天，盈利 ---
-       [买入 ${buy.date}, ${formatFxstr(buy.price)}, ${
+       [买入 ${buy.date}, ${utils.formatFxstr(buy.price)}, ${
             buy.count
-        }, ${formatFxstr(buy.total)}]`;
+        }, ${utils.formatFxstr(buy.total)}]`;
     }
 }
 

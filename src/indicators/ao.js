@@ -8,7 +8,7 @@
  */
 
 import _ from "lodash";
-import utils from "./utils";
+import utils from "../utils";
 
 function ao(tradeData, options) {
     utils.checkTradeData(tradeData);

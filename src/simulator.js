@@ -8,7 +8,8 @@ import moment from "moment";
 import _ from "lodash";
 import debugpkg from "debug";
 
-import { formatFxstr } from "./util";
+import utils from "./utils";
+// import { formatFxstr, calculatePrevAdjPrice } from "./util";
 
 // import stoploss from "./stoploss";
 // import mmb from "./momentum-breakthrough";
@@ -43,7 +44,7 @@ function showOptionsInfo(options) {
     }
 
     console.log(
-        `初始资金:        ${formatFxstr(options.initBalance)}元 
+        `初始资金:        ${utils.formatFxstr(options.initBalance)}元 
 测试交易资金模式:  ${options.fixCash ? "固定头寸" : "累计账户"}
 测试数据周期: ${options.startDate}
 
@@ -116,10 +117,10 @@ async function simulate(options) {
             // }，
 
             // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
-            stockData = await filterStockData(stockData);
+            stockData = await filterStockData(stockData, options);
 
             // 全部数据调整为前复权后再执行计算
-            calculatePrevAdjPrice(stockData);
+            // calculatePrevAdjPrice(stockData);
 
             // 开始按照日期执行交易算法
             let startDate = moment(options.startDate, "YYYYMMDD");
@@ -163,38 +164,38 @@ async function simulate(options) {
     }
 }
 
-/**
- * 将日线数据中的历史价位根据复权因子全部处理为前复权结果，方便后续计算
- *
- * @param {*} dailyData 日线数据
- * @param {int} digits 保留位数
- */
-function calculatePrevAdjPrice(dailyData, digits = 2) {
-    if (dailyData && dailyData.data && dailyData.data.length > 0) {
-        dailyData.data.forEach((item) => {
-            if (item.prevadj_factor) {
-                item.open = Number(
-                    (item.open * item.prevadj_factor).toFixed(digits)
-                );
-                item.close = Number(
-                    (item.close * item.prevadj_factor).toFixed(digits)
-                );
-                item.high = Number(
-                    (item.high * item.prevadj_factor).toFixed(digits)
-                );
-                item.low = Number(
-                    (item.low * item.prevadj_factor).toFixed(digits)
-                );
-                item.pre_close = Number(
-                    (item.pre_close * item.prevadj_factor).toFixed(digits)
-                );
-                item.change = Number(
-                    (item.change * item.prevadj_factor).toFixed(digits)
-                );
-            }
-        });
-    }
-}
+// /**
+//  * 将日线数据中的历史价位根据复权因子全部处理为前复权结果，方便后续计算
+//  *
+//  * @param {*} dailyData 日线数据
+//  * @param {int} digits 保留位数
+//  */
+// function calculatePrevAdjPrice(dailyData, digits = 2) {
+//     if (dailyData && dailyData.data && dailyData.data.length > 0) {
+//         dailyData.data.forEach((item) => {
+//             if (item.prevadj_factor) {
+//                 item.open = Number(
+//                     (item.open * item.prevadj_factor).toFixed(digits)
+//                 );
+//                 item.close = Number(
+//                     (item.close * item.prevadj_factor).toFixed(digits)
+//                 );
+//                 item.high = Number(
+//                     (item.high * item.prevadj_factor).toFixed(digits)
+//                 );
+//                 item.low = Number(
+//                     (item.low * item.prevadj_factor).toFixed(digits)
+//                 );
+//                 item.pre_close = Number(
+//                     (item.pre_close * item.prevadj_factor).toFixed(digits)
+//                 );
+//                 item.change = Number(
+//                     (item.change * item.prevadj_factor).toFixed(digits)
+//                 );
+//             }
+//         });
+//     }
+// }
 
 /**
  * 这里定义一个过滤列表的接口方法，利用options来过滤后续使用的股票
@@ -219,7 +220,39 @@ async function filterStockList(stockList, options) {
  * @param {*} options 数据过滤条件
  */
 async function filterStockData(stockData, options) {
-    stockData.data.reverse();
+    utils.checkTradeData(stockData && stockData.data);
+
+    debug(
+        `过滤数据范围：${options && options.startDate}, ${
+            stockData && stockData.data && stockData.data.length
+        }`
+    );
+    if (
+        options &&
+        options.startDate &&
+        stockData &&
+        stockData.data &&
+        stockData.data.length > 0
+    ) {
+        if (stockData.data[0].trade_date < options.startDate) {
+            let index = stockData.data.findIndex((data, i) => {
+                return data.trade_date >= options.startDate;
+            });
+
+            if (index) {
+                stockData.data = stockData.data.slice(index);
+            } else {
+                stockData.data = [];
+            }
+        }
+    }
+    debug(
+        `过滤后数据长度：${
+            stockData && stockData.data && stockData.data.length
+        }`
+    );
+
+    // stockData.data.reverse();
     return stockData;
 }
 

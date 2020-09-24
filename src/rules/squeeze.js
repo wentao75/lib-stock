@@ -6,7 +6,7 @@ import trans from "../transaction";
 import debugpkg from "debug";
 import { getDataRoot } from "@wt/lib-wtda-query";
 
-const debug = debugpkg("engine");
+const debug = debugpkg("rules:squeeze");
 
 const RULE_NAME = "squeeze";
 const SQUEEZE_DATA = Symbol("SQUEEZE_DATA");
@@ -55,7 +55,7 @@ function check(index, stockData, options, tsCode) {
         let trends = checkTTM(index, ttmwave);
         if (sdata[6][index] === SQUEEZE.states.READY) {
             // 有信号
-            if (trends[0] >= 4 && trends[2] >= 4) {
+            if (trends[0] >= 3 && trends[2] >= 3) {
                 return {
                     tsCode,
                     dataIndex: index,
@@ -74,7 +74,7 @@ function check(index, stockData, options, tsCode) {
             }
         } else if (sdata[6][index] === SQUEEZE.states.BUY) {
             // 检查Wave ABC的趋势变化
-            if (trends[0] >= 4 && trends[2] >= 4) {
+            if (trends[0] >= 3 && trends[2] >= 3) {
                 return {
                     tsCode,
                     dataIndex: index,
@@ -95,7 +95,7 @@ function check(index, stockData, options, tsCode) {
             sdata[6][index] === SQUEEZE.states.SELL &&
             options.squeeze.needSell
         ) {
-            if (trends[1] >= 4 && trends[3] >= 4) {
+            if (trends[1] <= 3 && trends[3] <= 3) {
                 return {
                     tsCode,
                     dataIndex: index,

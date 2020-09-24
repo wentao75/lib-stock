@@ -1,5 +1,6 @@
 import _ from "lodash";
-import { formatFxstr } from "./util";
+// import { formatFxstr } from "./util";
+import utils from "./utils";
 import debugpkg from "debug";
 
 // import trans from "./transaction";
@@ -66,7 +67,7 @@ async function executeTransaction(index, stockData, capitalData, options) {
                         debug(
                             `${
                                 rule.name
-                            } 卖出：${tradeDate}，价格：${formatFxstr(
+                            } 卖出：${tradeDate}，价格：${utils.formatFxstr(
                                 translog.price
                             )}元，数量：${
                                 translog.count / 100

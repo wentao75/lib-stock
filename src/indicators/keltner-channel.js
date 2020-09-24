@@ -15,7 +15,7 @@
 import _ from "lodash";
 import MA from "./ma";
 import ATR from "./atr";
-import utils from "./utils";
+import utils from "../utils";
 
 function keltner(tradeData, options) {
     if (!tradeData || tradeData.length < 0) return;

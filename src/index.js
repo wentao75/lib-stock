@@ -9,7 +9,7 @@ import opensell from "./opensell";
 import smashday from "./smashday";
 import engine from "./transaction-engine";
 import * as reports from "./reports";
-import { formatFxstr } from "./util";
+// import { formatFxstr } from "./util";
 
 import squeeze from "./rules/squeeze";
 import swing from "./rules/swing";
@@ -24,7 +24,7 @@ import SQUEEZE from "./indicators/squeeze";
 import TTMWave from "./indicators/ttmwave";
 import TTMTrend from "./indicators/ttmtrend";
 import Scalper from "./indicators/scalper";
-import utils from "./indicators/utils";
+import utils from "./utils";
 
 import favorites from "./favorites";
 
@@ -58,7 +58,6 @@ export {
     engine,
     rules,
     reports,
-    formatFxstr,
     indicators,
     utils,
     favorites,
