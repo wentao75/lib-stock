@@ -1396,59 +1396,78 @@ ${rules_desc}
 
       let rules = options && options.match && options.match.rules;
       let reports = {
-        updateTime: moment__default['default']().toISOString()
+        updateTime: moment__default['default']().toISOString(),
+        reports: []
       }; // 如果存在多个规则，符合多个规则的信号单独提取并显示
 
       let dupList = {};
       let needDupList = rules && rules.length > 1;
 
       for (let rule of rules) {
-        reports[rule.label] = await rule.createReports(allSignals[rule.label], options);
-        let ruleData = reports[rule.label];
+        let ruleData = await rule.createReports(allSignals[rule.label], options);
 
-        if (needDupList && ruleData) {
-          for (let state in ruleData) {
-            let stateList = ruleData[state];
+        if (ruleData && ruleData.length > 0) {
+          reports.reports.push({
+            label: rule.label,
+            data: ruleData
+          });
 
-            if (stateList && stateList.length > 0) {
-              for (let codeList of stateList) {
-                if (codeList && codeList.length > 0) {
-                  for (let code of codeList) {
-                    if (dupList[code]) {
-                      dupList[code] = dupList[code] + 1;
-                    } else {
-                      dupList[code] = 1;
+          if (needDupList) {
+            // TODO:
+            for (let stateList of ruleData) {
+              // let stateList = ruleData[state];
+              console.log(`stateList ${stateList.label}`);
+
+              if (stateList && stateList.data.length > 0) {
+                for (let codeList of stateList.data) {
+                  console.log(`codeList ${codeList.label}`);
+
+                  if (codeList && codeList.data.length > 0) {
+                    for (let code of codeList.data) {
+                      if (dupList[code]) {
+                        dupList[code] = dupList[code] + 1;
+                      } else {
+                        dupList[code] = 1;
+                      }
                     }
                   }
                 }
               }
             }
           }
-        }
+        } // let ruleData = reports[rule.label];
+
       }
 
       if (needDupList) {
-        let dupReports = [];
+        let dupReports = {
+          label: "多重信号",
+          data: []
+        };
 
         for (let i = rules.length; i > 1; i--) {
-          let tmp = [];
+          let tmp = {
+            label: "重叠" + i,
+            data: []
+          };
 
           for (let code in dupList) {
             if (dupList[code] && dupList[code] === i) {
-              tmp.push(code);
+              tmp.data.push(code);
             }
           }
 
-          if (tmp.length > 0) {
-            dupReports.push(tmp);
+          if (tmp.data.length > 0) {
+            dupReports.data.push(tmp);
           }
         }
 
-        if (dupReports.length > 0) {
+        if (dupReports.data.length > 0) {
           log$1(`有发现重叠的重要报告！`);
-          reports["重要"] = {
-            DUPLICATE: dupReports
-          };
+          reports.reports.unshift({
+            label: "重要",
+            data: [dupReports]
+          });
         }
       } // let reports = await report.createReports(foundSignals, options);
 
@@ -2839,52 +2858,118 @@ source: ${opt.source}
 
 
     async function createReports(results, options) {
-      if (___default['default'].isNil(results)) return; // results 当中按照signal进行了分组
+      if (___default['default'].isNil(results)) return;
+      let reports = []; // results 当中按照signal进行了分组
       // 下面主要分析signal==="READY"情况下，时间的分布
 
       let readyList = results && results[SQUEEZE.states.READY]; // 1, 2, 3, 5, 8, 13
       // let boundaries = [1, 2, 3, 5, 8, 13, _];
 
-      let days = [[], [], [], [], [], [], []];
+      let days = [{
+        label: "1天",
+        data: []
+      }, {
+        label: "2天",
+        data: []
+      }, {
+        label: "3天",
+        data: []
+      }, {
+        label: "4~5天",
+        data: []
+      }, {
+        label: "6~8天",
+        data: []
+      }, {
+        label: "8~13天",
+        data: []
+      }, {
+        label: "多于13天",
+        data: []
+      }];
 
       if (!___default['default'].isEmpty(readyList)) {
         for (let item of readyList) {
           let ready_days = item.squeeze && item.squeeze.days && item.squeeze.days[0];
           let i = 0;
           if (ready_days === 1) i = 0;else if (ready_days === 2) i = 1;else if (ready_days === 3) i = 2;else if (ready_days > 3 && ready_days <= 5) i = 3;else if (ready_days > 5 && ready_days <= 8) i = 4;else if (ready_days > 8 && ready_days <= 13) i = 5;else i = 6;
+          days[i].data.push(item.tsCode);
+        }
 
-          if (days[i]) {
-            days[i].push(item.tsCode);
+        let i = 0;
+
+        while (i < days.length) {
+          if (days[i] && days[i].data && days[i].data.length > 0) {
+            i++;
           } else {
-            days[i] = [item.tsCode];
+            days.splice(i, 1);
           }
         }
+
+        reports.push({
+          label: SQUEEZE.states.READY,
+          data: days
+        });
       }
 
       let buyList = results && results[SQUEEZE.states.BUY];
-      let bdays = [[], [], [], [], [], [], []];
+      let bdays = [{
+        label: "1天",
+        data: []
+      }, {
+        label: "2天",
+        data: []
+      }, {
+        label: "3天",
+        data: []
+      }, {
+        label: "4~5天",
+        data: []
+      }, {
+        label: "6~8天",
+        data: []
+      }, {
+        label: "8~13天",
+        data: []
+      }, {
+        label: "多于13天",
+        data: []
+      }];
 
       if (!___default['default'].isEmpty(buyList)) {
         for (let item of buyList) {
           let buy_days = item.squeeze && item.squeeze.days && item.squeeze.days[1];
           let i = 0;
           if (buy_days === 1) i = 0;else if (buy_days === 2) i = 1;else if (buy_days === 3) i = 2;else if (buy_days > 3 && buy_days <= 5) i = 3;else if (buy_days > 5 && buy_days <= 8) i = 4;else if (buy_days > 8 && buy_days <= 13) i = 5;else i = 7;
+          bdays[i].data.push(item.tsCode); // if (bdays[i]) {
+          // } else {
+          //     bdays[i] = [item.tsCode];
+          // }
+        }
 
-          if (bdays[i]) {
-            bdays[i].push(item.tsCode);
+        let i = 0;
+
+        while (i < bdays.length) {
+          if (bdays[i] && bdays[i].data && bdays[i].data.length > 0) {
+            i++;
           } else {
-            bdays[i] = [item.tsCode];
+            bdays.splice(i, 1);
           }
         }
-      }
 
-      let reports = {
-        // updateTime: moment().toISOString(),
-        // squeeze: {
-        [SQUEEZE.states.READY]: days,
-        [SQUEEZE.states.BUY]: bdays // },
+        reports.push({
+          label: SQUEEZE.states.BUY,
+          data: bdays
+        });
+      } // let reports = {
+      //     // updateTime: moment().toISOString(),
+      //     // squeeze: {
+      //     [SQUEEZE.states.READY]: days,
+      //     [SQUEEZE.states.BUY]: bdays,
+      //     // },
+      // };
 
-      };
+
       return reports;
     }
 
@@ -3370,28 +3455,45 @@ source: ${opt.source}
 
     async function createReports$1(results, options) {
       if (___default['default'].isNil(results)) return;
+      let reports = [];
       let readyList = results && results["READY"];
-      let days = [[]];
+      let days = [{
+        label: "全部",
+        data: []
+      }];
 
       if (!___default['default'].isEmpty(readyList)) {
         for (let item of readyList) {
-          days[0].push(item.tsCode);
+          days[0].data.push(item.tsCode);
         }
+
+        reports.push({
+          label: "READY",
+          data: days
+        });
       }
 
       let buyList = results && results["PULLBACK"];
-      let bdays = [[]];
+      let bdays = [{
+        label: "全部",
+        data: []
+      }];
 
       if (!___default['default'].isEmpty(buyList)) {
         for (let item of buyList) {
-          bdays[0].push(item.tsCode);
+          bdays[0].data.push(item.tsCode);
         }
-      }
 
-      let reports = {
-        READY: days,
-        PULLBACK: bdays
-      };
+        reports.push({
+          label: "PULLBACK",
+          data: bdays
+        });
+      } // let reports = {
+      //     READY: days,
+      //     PULLBACK: bdays,
+      // };
+
+
       return reports;
     }
 
@@ -3533,28 +3635,45 @@ source: ${opt.source}
 
     async function createReports$2(results, options) {
       if (___default['default'].isNil(results)) return;
+      let reports = [];
       let readyList = results && results["READY"];
-      let days = [[]];
+      let days = [{
+        label: "全部",
+        data: []
+      }];
 
       if (!___default['default'].isEmpty(readyList)) {
         for (let item of readyList) {
-          days[0].push(item.tsCode);
+          days[0].data.push(item.tsCode);
         }
+
+        reports.push({
+          label: "READY",
+          data: days
+        });
       }
 
       let buyList = results && results["BUY"];
-      let bdays = [[]];
+      let bdays = [{
+        label: "全部",
+        data: []
+      }];
 
       if (!___default['default'].isEmpty(buyList)) {
         for (let item of buyList) {
-          bdays[0].push(item.tsCode);
+          bdays[0].data.push(item.tsCode);
         }
-      }
 
-      let reports = {
-        READY: days,
-        BUY: bdays
-      };
+        reports.push({
+          label: "BUY",
+          data: bdays
+        });
+      } // let reports = {
+      //     READY: days,
+      //     BUY: bdays,
+      // };
+
+
       return reports;
     }
 

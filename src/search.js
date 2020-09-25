@@ -114,28 +114,35 @@ async function search(options) {
     let rules = options && options.match && options.match.rules;
     let reports = {
         updateTime: moment().toISOString(),
+        reports: [],
     };
+
     // 如果存在多个规则，符合多个规则的信号单独提取并显示
     let dupList = {};
     let needDupList = rules && rules.length > 1;
     for (let rule of rules) {
-        reports[rule.label] = await rule.createReports(
+        let ruleData = await rule.createReports(
             allSignals[rule.label],
             options
         );
+        if (ruleData && ruleData.length > 0) {
+            reports.reports.push({ label: rule.label, data: ruleData });
 
-        let ruleData = reports[rule.label];
-        if (needDupList && ruleData) {
-            for (let state in ruleData) {
-                let stateList = ruleData[state];
-                if (stateList && stateList.length > 0) {
-                    for (let codeList of stateList) {
-                        if (codeList && codeList.length > 0) {
-                            for (let code of codeList) {
-                                if (dupList[code]) {
-                                    dupList[code] = dupList[code] + 1;
-                                } else {
-                                    dupList[code] = 1;
+            if (needDupList) {
+                // TODO:
+                for (let stateList of ruleData) {
+                    // let stateList = ruleData[state];
+                    // console.log(`stateList ${stateList.label}`);
+                    if (stateList && stateList.data.length > 0) {
+                        for (let codeList of stateList.data) {
+                            // console.log(`codeList ${codeList.label}`);
+                            if (codeList && codeList.data.length > 0) {
+                                for (let code of codeList.data) {
+                                    if (dupList[code]) {
+                                        dupList[code] = dupList[code] + 1;
+                                    } else {
+                                        dupList[code] = 1;
+                                    }
                                 }
                             }
                         }
@@ -143,26 +150,26 @@ async function search(options) {
                 }
             }
         }
+
+        // let ruleData = reports[rule.label];
     }
 
     if (needDupList) {
-        let dupReports = [];
+        let dupReports = { label: "多重信号", data: [] };
         for (let i = rules.length; i > 1; i--) {
-            let tmp = [];
+            let tmp = { label: "重叠" + i, data: [] };
             for (let code in dupList) {
                 if (dupList[code] && dupList[code] === i) {
-                    tmp.push(code);
+                    tmp.data.push(code);
                 }
             }
-            if (tmp.length > 0) {
-                dupReports.push(tmp);
+            if (tmp.data.length > 0) {
+                dupReports.data.push(tmp);
             }
         }
-        if (dupReports.length > 0) {
+        if (dupReports.data.length > 0) {
             log(`有发现重叠的重要报告！`);
-            reports["重要"] = {
-                DUPLICATE: dupReports,
-            };
+            reports.reports.unshift({ label: "重要", data: [dupReports] });
         }
     }
 

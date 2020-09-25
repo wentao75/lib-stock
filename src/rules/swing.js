@@ -564,26 +564,30 @@ function showOptions(options) {
 async function createReports(results, options) {
     if (_.isNil(results)) return;
 
+    let reports = [];
+
     let readyList = results && results["READY"];
-    let days = [[]];
+    let days = [{ label: "全部", data: [] }];
     if (!_.isEmpty(readyList)) {
         for (let item of readyList) {
-            days[0].push(item.tsCode);
+            days[0].data.push(item.tsCode);
         }
+        reports.push({ label: "READY", data: days });
     }
 
     let buyList = results && results["PULLBACK"];
-    let bdays = [[]];
+    let bdays = [{ label: "全部", data: [] }];
     if (!_.isEmpty(buyList)) {
         for (let item of buyList) {
-            bdays[0].push(item.tsCode);
+            bdays[0].data.push(item.tsCode);
         }
+        reports.push({ label: "PULLBACK", data: bdays });
     }
 
-    let reports = {
-        READY: days,
-        PULLBACK: bdays,
-    };
+    // let reports = {
+    //     READY: days,
+    //     PULLBACK: bdays,
+    // };
 
     return reports;
 }

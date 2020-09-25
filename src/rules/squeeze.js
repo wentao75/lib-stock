@@ -250,12 +250,21 @@ source: ${opt.source}
 async function createReports(results, options) {
     if (_.isNil(results)) return;
 
+    let reports = [];
     // results 当中按照signal进行了分组
     // 下面主要分析signal==="READY"情况下，时间的分布
     let readyList = results && results[SQUEEZE.states.READY];
     // 1, 2, 3, 5, 8, 13
     // let boundaries = [1, 2, 3, 5, 8, 13, _];
-    let days = [[], [], [], [], [], [], []];
+    let days = [
+        { label: "1天", data: [] },
+        { label: "2天", data: [] },
+        { label: "3天", data: [] },
+        { label: "4~5天", data: [] },
+        { label: "6~8天", data: [] },
+        { label: "8~13天", data: [] },
+        { label: "多于13天", data: [] },
+    ];
     if (!_.isEmpty(readyList)) {
         for (let item of readyList) {
             let ready_days =
@@ -269,16 +278,29 @@ async function createReports(results, options) {
             else if (ready_days > 8 && ready_days <= 13) i = 5;
             else i = 6;
 
-            if (days[i]) {
-                days[i].push(item.tsCode);
+            days[i].data.push(item.tsCode);
+        }
+        let i = 0;
+        while (i < days.length) {
+            if (days[i] && days[i].data && days[i].data.length > 0) {
+                i++;
             } else {
-                days[i] = [item.tsCode];
+                days.splice(i, 1);
             }
         }
+        reports.push({ label: SQUEEZE.states.READY, data: days });
     }
 
     let buyList = results && results[SQUEEZE.states.BUY];
-    let bdays = [[], [], [], [], [], [], []];
+    let bdays = [
+        { label: "1天", data: [] },
+        { label: "2天", data: [] },
+        { label: "3天", data: [] },
+        { label: "4~5天", data: [] },
+        { label: "6~8天", data: [] },
+        { label: "8~13天", data: [] },
+        { label: "多于13天", data: [] },
+    ];
     if (!_.isEmpty(buyList)) {
         for (let item of buyList) {
             let buy_days =
@@ -292,21 +314,30 @@ async function createReports(results, options) {
             else if (buy_days > 8 && buy_days <= 13) i = 5;
             else i = 7;
 
-            if (bdays[i]) {
-                bdays[i].push(item.tsCode);
+            bdays[i].data.push(item.tsCode);
+            // if (bdays[i]) {
+            // } else {
+            //     bdays[i] = [item.tsCode];
+            // }
+        }
+        let i = 0;
+        while (i < bdays.length) {
+            if (bdays[i] && bdays[i].data && bdays[i].data.length > 0) {
+                i++;
             } else {
-                bdays[i] = [item.tsCode];
+                bdays.splice(i, 1);
             }
         }
+        reports.push({ label: SQUEEZE.states.BUY, data: bdays });
     }
 
-    let reports = {
-        // updateTime: moment().toISOString(),
-        // squeeze: {
-        [SQUEEZE.states.READY]: days,
-        [SQUEEZE.states.BUY]: bdays,
-        // },
-    };
+    // let reports = {
+    //     // updateTime: moment().toISOString(),
+    //     // squeeze: {
+    //     [SQUEEZE.states.READY]: days,
+    //     [SQUEEZE.states.BUY]: bdays,
+    //     // },
+    // };
 
     return reports;
 }
