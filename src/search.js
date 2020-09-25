@@ -115,12 +115,57 @@ async function search(options) {
     let reports = {
         updateTime: moment().toISOString(),
     };
+    // 如果存在多个规则，符合多个规则的信号单独提取并显示
+    let dupList = {};
+    let needDupList = rules && rules.length > 1;
     for (let rule of rules) {
         reports[rule.label] = await rule.createReports(
             allSignals[rule.label],
             options
         );
+
+        let ruleData = reports[rule.label];
+        if (needDupList && ruleData) {
+            for (let state in ruleData) {
+                let stateList = ruleData[state];
+                if (stateList && stateList.length > 0) {
+                    for (let codeList of stateList) {
+                        if (codeList && codeList.length > 0) {
+                            for (let code of codeList) {
+                                if (dupList[code]) {
+                                    dupList[code] = dupList[code] + 1;
+                                } else {
+                                    dupList[code] = 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
+
+    if (needDupList) {
+        let dupReports = [];
+        for (let i = rules.length; i > 1; i--) {
+            let tmp = [];
+            for (let code in dupList) {
+                if (dupList[code] && dupList[code] === i) {
+                    tmp.push(code);
+                }
+            }
+            if (tmp.length > 0) {
+                dupReports.push(tmp);
+            }
+        }
+        if (dupReports.length > 0) {
+            log(`有发现重叠的重要报告！`);
+            reports["重要"] = {
+                DUPLICATE: dupReports,
+            };
+        }
+    }
+
     // let reports = await report.createReports(foundSignals, options);
     await saveReports(reports);
 
