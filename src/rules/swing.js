@@ -445,7 +445,7 @@ function check(index, stockData, options, tsCode) {
     // console.log(`检查${index}波段结果：%o`, ret);
     if (!ret) return;
     // 只有等待回调的阶段需要进入返回列表
-    if (ret.swing && ret.swing.state !== 0) {
+    if (ret.swing && (ret.swing.state === 0 || ret.swing.state === 9)) {
         return ret;
     }
 }
@@ -564,9 +564,25 @@ function showOptions(options) {
 async function createReports(results, options) {
     if (_.isNil(results)) return;
 
+    let readyList = results && results["READY"];
+    let days = [[]];
+    if (!_.isEmpty(readyList)) {
+        for (let item of readyList) {
+            days[0].push(item.tsCode);
+        }
+    }
+
+    let buyList = results && results["PULLBACK"];
+    let bdays = [[]];
+    if (!_.isEmpty(buyList)) {
+        for (let item of buyList) {
+            bdays[0].push(item.tsCode);
+        }
+    }
+
     let reports = {
-        updateTime: moment().toISOString(),
-        swing: {},
+        READY: days,
+        PULLBACK: bdays,
     };
 
     return reports;

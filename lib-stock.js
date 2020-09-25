@@ -1348,7 +1348,8 @@ ${rules_desc}
       stockList = await filterStockList$1(stockList, options);
       log$1(`算法执行 ${stockList && stockList.length} 条数据`);
       log$1("");
-      let foundSignals = {}; // 下一步开始按照给出的数据循环进行处理
+      let allSignals = {}; // let foundSignals = {};
+      // 下一步开始按照给出的数据循环进行处理
 
       for (let stockItem of stockList) {
         // this.log(`处理数据：%o`, stockItem);
@@ -1362,9 +1363,7 @@ ${rules_desc}
         if (stockData) {
           debug$4(`[${stockItem.ts_code}]${stockItem.name} 【数据更新时间：${moment__default['default'](stockData.updateTime).format("YYYY-MM-DD HH:mm")}】`); // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
 
-          stockData = await prepareStockData(stockData, options); // 全部数据调整为前复权后再执行计算，不再需要
-          // calculatePrevAdjPrice(stockData);
-
+          stockData = await prepareStockData(stockData, options);
           debug$4(`执行算法！${stockData.data.length - 1}`);
           let rules = options && options.match && options.match.rules;
 
@@ -1372,6 +1371,13 @@ ${rules_desc}
             let matched = rule.check(stockData.data.length - 1, stockData.data, options, stockItem.ts_code); // log(`ret: %o`, matched);
 
             if (matched && matched.hasSignals) {
+              let foundSignals = allSignals[rule.label];
+
+              if (!foundSignals) {
+                allSignals[rule.label] = {};
+                foundSignals = allSignals[rule.label];
+              }
+
               log$1(`**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}`);
               let signal = matched.signal;
 
@@ -1385,30 +1391,42 @@ ${rules_desc}
             }
           }
         }
-      }
+      } //let report = options && options.match && options.match.report;
 
-      let report = options && options.match && options.match.report;
-      let reports = await report.createReports(foundSignals, options);
+
+      let rules = options && options.match && options.match.rules;
+      let reports = {
+        updateTime: moment__default['default']().toISOString()
+      };
+
+      for (let rule of rules) {
+        reports[rule.label] = await rule.createReports(allSignals[rule.label], options);
+      } // let reports = await report.createReports(foundSignals, options);
+
+
       await saveReports(reports);
-
-      for (let item in foundSignals) {
-        let list = foundSignals[item];
-        log$1(`*** 信号类型：${item}，共发现${list && list.length} ***`); // for (let code of list) {
-        //     log(`  "${code}",`);
-        // }
-      }
-
-      let buyList = reports && reports.squeeze && reports.squeeze.buyList;
-      let readyList = reports && reports.squeeze && reports.squeeze.readyList;
-      let boundaries = ["1天", "2天", "3天", "5~8天", "8~13天", "超13天"];
-
-      for (let i = 0; i < boundaries.length; i++) {
-        log$1(`** 买入信号【${boundaries[i]}】： ${buyList && buyList[i].length}`);
-      }
-
-      for (let i = 0; i < boundaries.length; i++) {
-        log$1(`** 准备信号【${boundaries[i]}】： ${readyList && readyList[i].length}`);
-      }
+      log$1(` *** 报告存储完毕！ ***`); // for (let item in foundSignals) {
+      //     let list = foundSignals[item];
+      //     log(`*** 信号类型：${item}，共发现${list && list.length} ***`);
+      //     // for (let code of list) {
+      //     //     log(`  "${code}",`);
+      //     // }
+      // }
+      // let buyList = reports && reports.squeeze && reports.squeeze.buyList;
+      // let readyList = reports && reports.squeeze && reports.squeeze.readyList;
+      // let boundaries = ["1天", "2天", "3天", "5~8天", "8~13天", "超13天"];
+      // for (let i = 0; i < boundaries.length; i++) {
+      //     log(
+      //         `** 买入信号【${boundaries[i]}】： ${buyList && buyList[i].length}`
+      //     );
+      // }
+      // for (let i = 0; i < boundaries.length; i++) {
+      //     log(
+      //         `** 准备信号【${boundaries[i]}】： ${
+      //             readyList && readyList[i].length
+      //         }`
+      //     );
+      // }
     }
 
     function getReportsFile() {
@@ -1503,7 +1521,86 @@ ${rules_desc}
       readReports
     };
 
-    const debug$5 = debugpkg__default['default']("mmb");
+    const debug$5 = debugpkg__default['default']("rules:benchmark");
+    /**
+     * 基准参数，用于测量正常买入卖出情况下的基准效果
+     * 采用的买入策略为开盘买入，第二天收盘卖出；或者止损平仓
+     */
+
+    const RULE_NAME = "benchmark";
+    /**
+     * 检查买入条件
+     * @param {*} stockInfo 股票信息
+     * @param {double} balance 账户余额
+     * @param {int} index 交易日数据索引位置
+     * @param {*} stockData 数据
+     * @param {*} options 算法参数
+     */
+
+    function checkBuyTransaction(stockInfo, balance, index, stockData, options) {
+      if (balance <= 0) return; // debug(`买入检查: ${balance}, ${tradeDate}, %o, ${index}`, stockData);
+      // let bmOptions = options && options[RULE_NAME];
+
+      let currentData = stockData[index]; // console.log(`跟踪信息： ${stockData.length}, ${index}`, currentData);
+
+      let targetPrice = currentData.open;
+      let tradeDate = stockData[index].trade_date;
+      debug$5(`基准买入：[${tradeDate} price=${targetPrice} open=${currentData.open} close=${currentData.close}]`);
+      return trans.createBuyTransaction(stockInfo, tradeDate, index, balance, targetPrice, RULE_NAME, `基准买入 ${targetPrice.toFixed(2)}`);
+    }
+    /**
+     * 检查是否可以生成卖出交易，如果可以卖出，产生卖出交易记录
+     *
+     * @param {*} info 股票信息
+     * @param {*} stock 持仓信息
+     * @param {*} index 今日数据索引位置
+     * @param {*} stockData 日线数据
+     * @param {*} options 算法参数
+     */
+
+
+    function checkSellTransaction(stockInfo, stock, index, stockData, options) {
+      if (___default['default'].isEmpty(stock) || stock.count <= 0) return;
+      let currentData = stockData[index];
+      let tradeDate = currentData.trade_date;
+      let bmoptions = options && options[RULE_NAME];
+      let priceType = bmoptions.sellPrice;
+
+      if (priceType === "open") {
+        debug$5(`基准卖出：[${tradeDate} price=${currentData.open} open=${currentData.open} close=${currentData.close}]`);
+        return trans.createSellTransaction(stockInfo, tradeDate, index, stock.count, currentData.open, priceType, `开盘卖出 ${currentData.open})`);
+      } else if (priceType === "close") {
+        debug$5(`基准卖出：[${tradeDate} price=${currentData.close} open=${currentData.open} close=${currentData.close}]`);
+        return trans.createSellTransaction(stockInfo, tradeDate, index, stock.count, currentData.open, priceType, `收盘卖出 ${currentData.close}`);
+      }
+    }
+    /**
+     * 返回参数配置的显示信息
+     * @param {*}} opions 参数配置
+     */
+
+
+    function showOptions(options) {
+      return `
+模型 ${benchmark.name}[${benchmark.label}] 参数：
+卖出类型: ${options.benchmark.sellPrice}
+`;
+    }
+
+    let benchmark = {
+      name: "基准",
+      label: RULE_NAME,
+      description: "基准测试",
+      methodTypes: {
+        open: "开盘卖出",
+        close: "收盘卖出"
+      },
+      checkBuyTransaction,
+      checkSellTransaction,
+      showOptions
+    };
+
+    const debug$6 = debugpkg__default['default']("rules:mmb");
     const OPTIONS_NAME = "mmb";
     /**
      * 检查买入条件
@@ -1542,11 +1639,11 @@ ${rules_desc}
 
       let targetPrice = currentData.open + moment * P;
       let tradeDate = stockData[index].trade_date;
-      debug$5(`买入条件检查${tradeDate}: ${targetPrice.toFixed(2)}=${currentData.open}+${moment.toFixed(2)}*${P} [o: ${currentData.open}, h: ${currentData.high}, l: ${currentData.low}, c: ${currentData.close}, d: ${currentData.trade_date}]`);
+      debug$6(`买入条件检查${tradeDate}: ${targetPrice.toFixed(2)}=${currentData.open}+${moment.toFixed(2)}*${P} [o: ${currentData.open}, h: ${currentData.high}, l: ${currentData.low}, c: ${currentData.close}, d: ${currentData.trade_date}]`);
 
       if (currentData.high >= targetPrice && currentData.open <= targetPrice) {
         // 执行买入交易
-        debug$5(`符合条件：${tradeDate}`);
+        debug$6(`符合条件：${tradeDate}`);
         return trans.createBuyTransaction(stockInfo, tradeDate, index, balance, targetPrice, "mmb", `动能突破买入 ${targetPrice.toFixed(2)} (=${currentData.open}+${moment.toFixed(2)}*${(P * 100).toFixed(2)}%)`);
       }
     }
@@ -1585,7 +1682,7 @@ ${rules_desc}
 
       if (!mmboptions.nommb1 && currentData.open > stock.price) {
         // 采用第二天开盘价盈利就卖出的策略
-        debug$5(`开盘盈利策略符合：${currentData.open.toFixed(2)} (> ${stock.price.toFixed(2)})`);
+        debug$6(`开盘盈利策略符合：${currentData.open.toFixed(2)} (> ${stock.price.toFixed(2)})`);
         return engine.createSellTransaction(stockInfo, tradeDate, index, stock.count, currentData.open, "mmb1", `开盘盈利卖出 ${currentData.open} (> ${stock.price.toFixed(2)})`);
       }
 
@@ -1625,7 +1722,7 @@ ${rules_desc}
      */
 
 
-    function showOptions(options) {
+    function showOptions$1(options) {
       return `
 模型 ${mmb.name}[${mmb.label}] 参数：
 波幅类型 [${options.mmb.mmbType === "hc" ? "最高-收盘" : "最高-最低"}]
@@ -1649,11 +1746,11 @@ ${rules_desc}
       },
       checkBuyTransaction: checkMMBBuyTransaction,
       checkSellTransaction: checkMMBSellTransaction,
-      showOptions
+      showOptions: showOptions$1
     };
 
     // const _ = require("lodash");
-    const debug$6 = debugpkg__default['default']("stoploss");
+    const debug$7 = debugpkg__default['default']("rules:stoploss");
     const OPTIONS_NAME$1 = "stoploss";
     /**
      * 检查是否需要执行止损
@@ -1670,7 +1767,7 @@ ${rules_desc}
 
       let tradeDate = currentData.trade_date;
       let lossPrice = stock.price * (1 - S);
-      debug$6(`止损检查${tradeDate}: ${currentData.low}] <= ${lossPrice.toFixed(2)} (=${stock.price.toFixed(2)}*(1-${(S * 100).toFixed(2)}%))`);
+      debug$7(`止损检查${tradeDate}: ${currentData.low}] <= ${lossPrice.toFixed(2)} (=${stock.price.toFixed(2)}*(1-${(S * 100).toFixed(2)}%))`);
 
       if (currentData.low <= lossPrice) {
         // 当日价格范围达到止损值
@@ -1683,7 +1780,7 @@ ${rules_desc}
      */
 
 
-    function showOptions$1(options) {
+    function showOptions$2(options) {
       return `
 模型 ${stoploss.name}[${stoploss.label}] 参数：
 止损比例: ${options.stoploss.S * 100}%
@@ -1698,85 +1795,6 @@ ${rules_desc}
         stoploss: "止损卖出"
       },
       checkSellTransaction: checkStoplossTransaction,
-      showOptions: showOptions$1
-    };
-
-    const debug$7 = debugpkg__default['default']("benchmark");
-    /**
-     * 基准参数，用于测量正常买入卖出情况下的基准效果
-     * 采用的买入策略为开盘买入，第二天收盘卖出；或者止损平仓
-     */
-
-    const RULE_NAME = "benchmark";
-    /**
-     * 检查买入条件
-     * @param {*} stockInfo 股票信息
-     * @param {double} balance 账户余额
-     * @param {int} index 交易日数据索引位置
-     * @param {*} stockData 数据
-     * @param {*} options 算法参数
-     */
-
-    function checkBuyTransaction(stockInfo, balance, index, stockData, options) {
-      if (balance <= 0) return; // debug(`买入检查: ${balance}, ${tradeDate}, %o, ${index}`, stockData);
-      // let bmOptions = options && options[RULE_NAME];
-
-      let currentData = stockData[index]; // console.log(`跟踪信息： ${stockData.length}, ${index}`, currentData);
-
-      let targetPrice = currentData.open;
-      let tradeDate = stockData[index].trade_date;
-      debug$7(`基准买入：[${tradeDate} price=${targetPrice} open=${currentData.open} close=${currentData.close}]`);
-      return trans.createBuyTransaction(stockInfo, tradeDate, index, balance, targetPrice, RULE_NAME, `基准买入 ${targetPrice.toFixed(2)}`);
-    }
-    /**
-     * 检查是否可以生成卖出交易，如果可以卖出，产生卖出交易记录
-     *
-     * @param {*} info 股票信息
-     * @param {*} stock 持仓信息
-     * @param {*} index 今日数据索引位置
-     * @param {*} stockData 日线数据
-     * @param {*} options 算法参数
-     */
-
-
-    function checkSellTransaction(stockInfo, stock, index, stockData, options) {
-      if (___default['default'].isEmpty(stock) || stock.count <= 0) return;
-      let currentData = stockData[index];
-      let tradeDate = currentData.trade_date;
-      let bmoptions = options && options[RULE_NAME];
-      let priceType = bmoptions.sellPrice;
-
-      if (priceType === "open") {
-        debug$7(`基准卖出：[${tradeDate} price=${currentData.open} open=${currentData.open} close=${currentData.close}]`);
-        return trans.createSellTransaction(stockInfo, tradeDate, index, stock.count, currentData.open, priceType, `开盘卖出 ${currentData.open})`);
-      } else if (priceType === "close") {
-        debug$7(`基准卖出：[${tradeDate} price=${currentData.close} open=${currentData.open} close=${currentData.close}]`);
-        return trans.createSellTransaction(stockInfo, tradeDate, index, stock.count, currentData.open, priceType, `收盘卖出 ${currentData.close}`);
-      }
-    }
-    /**
-     * 返回参数配置的显示信息
-     * @param {*}} opions 参数配置
-     */
-
-
-    function showOptions$2(options) {
-      return `
-模型 ${benchmark.name}[${benchmark.label}] 参数：
-卖出类型: ${options.benchmark.sellPrice}
-`;
-    }
-
-    let benchmark = {
-      name: "基准",
-      label: RULE_NAME,
-      description: "基准测试",
-      methodTypes: {
-        open: "开盘卖出",
-        close: "收盘卖出"
-      },
-      checkBuyTransaction,
-      checkSellTransaction,
       showOptions: showOptions$2
     };
 
@@ -2780,39 +2798,43 @@ source: ${opt.source}
 
       let days = [[], [], [], [], [], [], []];
 
-      for (let item of readyList) {
-        let ready_days = item.squeeze && item.squeeze.days && item.squeeze.days[0];
-        let i = 0;
-        if (ready_days === 1) i = 0;else if (ready_days === 2) i = 1;else if (ready_days === 3) i = 2;else if (ready_days > 3 && ready_days <= 5) i = 3;else if (ready_days > 5 && ready_days <= 8) i = 4;else if (ready_days > 8 && ready_days <= 13) i = 5;else i = 6;
+      if (!___default['default'].isEmpty(readyList)) {
+        for (let item of readyList) {
+          let ready_days = item.squeeze && item.squeeze.days && item.squeeze.days[0];
+          let i = 0;
+          if (ready_days === 1) i = 0;else if (ready_days === 2) i = 1;else if (ready_days === 3) i = 2;else if (ready_days > 3 && ready_days <= 5) i = 3;else if (ready_days > 5 && ready_days <= 8) i = 4;else if (ready_days > 8 && ready_days <= 13) i = 5;else i = 6;
 
-        if (days[i]) {
-          days[i].push(item.tsCode);
-        } else {
-          days[i] = [item.tsCode];
+          if (days[i]) {
+            days[i].push(item.tsCode);
+          } else {
+            days[i] = [item.tsCode];
+          }
         }
       }
 
       let buyList = results && results[SQUEEZE.states.BUY];
       let bdays = [[], [], [], [], [], [], []];
 
-      for (let item of buyList) {
-        let buy_days = item.squeeze && item.squeeze.days && item.squeeze.days[1];
-        let i = 0;
-        if (buy_days === 1) i = 0;else if (buy_days === 2) i = 1;else if (buy_days === 3) i = 2;else if (buy_days > 3 && buy_days <= 5) i = 3;else if (buy_days > 5 && buy_days <= 8) i = 4;else if (buy_days > 8 && buy_days <= 13) i = 5;else i = 7;
+      if (!___default['default'].isEmpty(buyList)) {
+        for (let item of buyList) {
+          let buy_days = item.squeeze && item.squeeze.days && item.squeeze.days[1];
+          let i = 0;
+          if (buy_days === 1) i = 0;else if (buy_days === 2) i = 1;else if (buy_days === 3) i = 2;else if (buy_days > 3 && buy_days <= 5) i = 3;else if (buy_days > 5 && buy_days <= 8) i = 4;else if (buy_days > 8 && buy_days <= 13) i = 5;else i = 7;
 
-        if (bdays[i]) {
-          bdays[i].push(item.tsCode);
-        } else {
-          bdays[i] = [item.tsCode];
+          if (bdays[i]) {
+            bdays[i].push(item.tsCode);
+          } else {
+            bdays[i] = [item.tsCode];
+          }
         }
       }
 
       let reports = {
-        updateTime: moment__default['default']().toISOString(),
-        squeeze: {
-          readyList: days,
-          buyList: bdays
-        }
+        // updateTime: moment().toISOString(),
+        // squeeze: {
+        [SQUEEZE.states.READY]: days,
+        [SQUEEZE.states.BUY]: bdays // },
+
       };
       return reports;
     }
@@ -3206,7 +3228,7 @@ source: ${opt.source}
 
       if (!ret) return; // 只有等待回调的阶段需要进入返回列表
 
-      if (ret.swing && ret.swing.state !== 0) {
+      if (ret.swing && (ret.swing.state === 0 || ret.swing.state === 9)) {
         return ret;
       }
     } // function readContext(index, stockData) {
@@ -3299,9 +3321,27 @@ source: ${opt.source}
 
     async function createReports$1(results, options) {
       if (___default['default'].isNil(results)) return;
+      let readyList = results && results["READY"];
+      let days = [[]];
+
+      if (!___default['default'].isEmpty(readyList)) {
+        for (let item of readyList) {
+          days[0].push(item.tsCode);
+        }
+      }
+
+      let buyList = results && results["PULLBACK"];
+      let bdays = [[]];
+
+      if (!___default['default'].isEmpty(buyList)) {
+        for (let item of buyList) {
+          bdays[0].push(item.tsCode);
+        }
+      }
+
       let reports = {
-        updateTime: moment__default['default']().toISOString(),
-        swing: {}
+        READY: days,
+        PULLBACK: bdays
       };
       return reports;
     }
@@ -3316,6 +3356,169 @@ source: ${opt.source}
       check: check$2,
       showOptions: showOptions$7,
       createReports: createReports$1
+    };
+
+    /**
+     * HOLP: High of Low Period
+     *
+     * 这是一个反转操作方式，需要严格执行规则
+     *  1. 首先是启动点为近25天（周期）的价格新低，最少是17天（周期）
+     *     这应该是一个下跌趋势，可以考虑通过检查最近20天内的阶段高点和阶段地点，然后看中间的间隔
+     *  2. 最近的最低价K线位置确定，记录最高价（突破启动价位）和最低价（初始止损）
+     *  3. 进入交易后，如果交易执行超过3天（周期），则初始止损调整为2根K线跟进止损（前面第二根K线最低价止损）
+     *  4. 如果过程中发生回调，假如当日没有发生止损，但是2K线跟进止损会触发，则保持止损价位不变，看走势止损或者可以恢复2K线止损继续
+     */
+    const debug$d = debugpkg__default['default']("rules:holp");
+    /**
+     * 基准参数，用于测量正常买入卖出情况下的基准效果
+     * 采用的买入策略为开盘买入，第二天收盘卖出；或者止损平仓
+     */
+
+    const RULE_NAME$5 = "HOLP";
+
+    function check$3(index, stockData, options, tsCode) {
+      // 从index位置查找前面25个数据中的最大和最小位置，确定趋势
+      if (___default['default'].isNil(stockData) || ___default['default'].isEmpty(stockData) || stockData.length < 20 || index < 20) {
+        return;
+      }
+
+      let min = stockData[index].low;
+      let minIndex = index;
+      let max = stockData[index].high;
+      let maxIndex = index;
+
+      for (let i = 0; i < 25; i++) {
+        if (index - i - 1 < 0) break;
+
+        if (stockData[index - i - 1].low <= min) {
+          min = stockData[index].low;
+          minIndex = index - i - 1;
+        }
+
+        if (stockData[index - i - 1].high >= max) {
+          max = stockData[index - i - 1].high;
+          maxIndex = index - i - 1;
+        }
+      }
+
+      debug$d(`最低 ${min} - ${minIndex}, 最高 ${max} - ${maxIndex}`);
+      let tradeDate = stockData[index].trade_date;
+      debug$d(`${tradeDate} 之前新低位置 ${stockData[minIndex].trade_date}`);
+
+      if (index - minIndex <= 3 && minIndex - maxIndex >= 17) {
+        // 符合初步条件，下面验证是否已经触发交易
+        let readyIndex = minIndex;
+        let data = stockData[readyIndex];
+        let state = 0;
+        let lossState = 0;
+        let startPrice = data.high;
+        let lossTarget = data.low;
+        let startDate;
+        let startIndex = -1;
+        let tranPrice;
+
+        for (let i = readyIndex + 1; i <= index; i++) {
+          let daily = stockData[i];
+
+          if (state === 0 && daily.high >= startPrice) {
+            // 记录启动日
+            state = 1;
+            lossState = 0;
+            startDate = daily.trade_date;
+            startIndex = i;
+            tranPrice = daily.close;
+          }
+        }
+
+        let days = [index - readyIndex + 1, state === 0 ? 0 : index - startIndex + 1];
+        let stateMemo;
+
+        if (state === 0) {
+          stateMemo = `还未突破目标价格${startPrice}，等待交易`;
+        } else if (state === 1) {
+          stateMemo = `已经进入交易${startDate}，交易持续${days[1]}天`;
+        }
+
+        return {
+          tsCode,
+          dataIndex: index,
+          date: tradeDate,
+          tradeType: "signal",
+          hasSignals: true,
+          signal: state === 0 ? "READY" : "BUY",
+          type: "holp",
+          holp: {
+            state,
+            lossState,
+            days,
+            targets: [startPrice, lossTarget],
+            tran: [startDate, tranPrice]
+          },
+          memo: `HOLP信号，[${data.trade_date}最低点，持续${days[0]}天，${stateMemo}]`
+        };
+      }
+    }
+
+    function checkBuyTransaction$5(stockInfo, balance, index, stockData, options) {
+      debug$d(`检查HOLP买入：${index}, ${balance}`);
+      if (balance <= 0) return;
+    }
+
+    function checkSellTransaction$5(stockInfo, stock, index, stockData, options) {
+      if (___default['default'].isNil(stock) || stock.count <= 0) return;
+    }
+    /**
+     * 返回参数配置的显示信息
+     * @param {*}} opions 参数配置
+     */
+
+
+    function showOptions$8(options) {
+      let opt = options && options.holp; // let buy = opt && options.squeeze.buy;
+      // let sell = opt && options.squeeze.sell;
+
+      return `
+模型 ${holp.name}[${holp.label}] 参数：无
+`;
+    }
+
+    async function createReports$2(results, options) {
+      if (___default['default'].isNil(results)) return;
+      let readyList = results && results["READY"];
+      let days = [[]];
+
+      if (!___default['default'].isEmpty(readyList)) {
+        for (let item of readyList) {
+          days[0].push(item.tsCode);
+        }
+      }
+
+      let buyList = results && results["BUY"];
+      let bdays = [[]];
+
+      if (!___default['default'].isEmpty(buyList)) {
+        for (let item of buyList) {
+          bdays[0].push(item.tsCode);
+        }
+      }
+
+      let reports = {
+        READY: days,
+        BUY: bdays
+      };
+      return reports;
+    }
+
+    const holp = {
+      name: "低点反转",
+      label: RULE_NAME$5,
+      description: "HOLP低点反转",
+      methodTypes: {},
+      checkBuyTransaction: checkBuyTransaction$5,
+      checkSellTransaction: checkSellTransaction$5,
+      check: check$3,
+      showOptions: showOptions$8,
+      createReports: createReports$2
     };
 
     /**
@@ -3666,7 +3869,8 @@ source: ${opt.source}
       opensell,
       smashday,
       squeeze: squeeze$1,
-      swing
+      swing,
+      holp
     };
 
     exports.engine = engine;

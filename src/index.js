@@ -1,18 +1,18 @@
 // const simulate = require("./simulator");
 import simulate from "./simulator";
 import search from "./search";
-import mmb from "./momentum-breakthrough";
-import stoploss from "./stoploss";
-import benchmark from "./benchmark-basic";
-import outsideday from "./outsideday";
-import opensell from "./opensell";
-import smashday from "./smashday";
 import engine from "./transaction-engine";
 import * as reports from "./reports";
-// import { formatFxstr } from "./util";
 
+import benchmark from "./rules/benchmark-basic";
+import mmb from "./rules/momentum-breakthrough";
+import stoploss from "./rules/stoploss";
+import outsideday from "./rules/outsideday";
+import opensell from "./rules/opensell";
+import smashday from "./rules/smashday";
 import squeeze from "./rules/squeeze";
 import swing from "./rules/swing";
+import holp from "./rules/holp";
 
 import MA from "./indicators/ma";
 import ATR from "./indicators/atr";
@@ -50,6 +50,7 @@ const rules = {
     smashday,
     squeeze,
     swing,
+    holp,
 };
 
 export {

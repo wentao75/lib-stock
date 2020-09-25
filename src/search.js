@@ -49,7 +49,8 @@ async function search(options) {
 
     log("");
 
-    let foundSignals = {};
+    let allSignals = {};
+    // let foundSignals = {};
     // 下一步开始按照给出的数据循环进行处理
     for (let stockItem of stockList) {
         // this.log(`处理数据：%o`, stockItem);
@@ -75,8 +76,6 @@ async function search(options) {
             // 首先过滤历史数据，这里将日线数据调整为正常日期从历史到现在
             stockData = await prepareStockData(stockData, options);
 
-            // 全部数据调整为前复权后再执行计算，不再需要
-            // calculatePrevAdjPrice(stockData);
             debug(`执行算法！${stockData.data.length - 1}`);
 
             let rules = options && options.match && options.match.rules;
@@ -89,6 +88,12 @@ async function search(options) {
                 );
                 // log(`ret: %o`, matched);
                 if (matched && matched.hasSignals) {
+                    let foundSignals = allSignals[rule.label];
+                    if (!foundSignals) {
+                        allSignals[rule.label] = {};
+                        foundSignals = allSignals[rule.label];
+                    }
+
                     log(
                         `**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}`
                     );
@@ -105,33 +110,44 @@ async function search(options) {
         }
     }
 
-    let report = options && options.match && options.match.report;
-    let reports = await report.createReports(foundSignals, options);
+    //let report = options && options.match && options.match.report;
+    let rules = options && options.match && options.match.rules;
+    let reports = {
+        updateTime: moment().toISOString(),
+    };
+    for (let rule of rules) {
+        reports[rule.label] = await rule.createReports(
+            allSignals[rule.label],
+            options
+        );
+    }
+    // let reports = await report.createReports(foundSignals, options);
     await saveReports(reports);
 
-    for (let item in foundSignals) {
-        let list = foundSignals[item];
-        log(`*** 信号类型：${item}，共发现${list && list.length} ***`);
-        // for (let code of list) {
-        //     log(`  "${code}",`);
-        // }
-    }
+    log(` *** 报告存储完毕！ ***`);
+    // for (let item in foundSignals) {
+    //     let list = foundSignals[item];
+    //     log(`*** 信号类型：${item}，共发现${list && list.length} ***`);
+    //     // for (let code of list) {
+    //     //     log(`  "${code}",`);
+    //     // }
+    // }
 
-    let buyList = reports && reports.squeeze && reports.squeeze.buyList;
-    let readyList = reports && reports.squeeze && reports.squeeze.readyList;
-    let boundaries = ["1天", "2天", "3天", "5~8天", "8~13天", "超13天"];
-    for (let i = 0; i < boundaries.length; i++) {
-        log(
-            `** 买入信号【${boundaries[i]}】： ${buyList && buyList[i].length}`
-        );
-    }
-    for (let i = 0; i < boundaries.length; i++) {
-        log(
-            `** 准备信号【${boundaries[i]}】： ${
-                readyList && readyList[i].length
-            }`
-        );
-    }
+    // let buyList = reports && reports.squeeze && reports.squeeze.buyList;
+    // let readyList = reports && reports.squeeze && reports.squeeze.readyList;
+    // let boundaries = ["1天", "2天", "3天", "5~8天", "8~13天", "超13天"];
+    // for (let i = 0; i < boundaries.length; i++) {
+    //     log(
+    //         `** 买入信号【${boundaries[i]}】： ${buyList && buyList[i].length}`
+    //     );
+    // }
+    // for (let i = 0; i < boundaries.length; i++) {
+    //     log(
+    //         `** 准备信号【${boundaries[i]}】： ${
+    //             readyList && readyList[i].length
+    //         }`
+    //     );
+    // }
 }
 
 function getReportsFile() {

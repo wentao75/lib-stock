@@ -256,52 +256,56 @@ async function createReports(results, options) {
     // 1, 2, 3, 5, 8, 13
     // let boundaries = [1, 2, 3, 5, 8, 13, _];
     let days = [[], [], [], [], [], [], []];
-    for (let item of readyList) {
-        let ready_days =
-            item.squeeze && item.squeeze.days && item.squeeze.days[0];
-        let i = 0;
-        if (ready_days === 1) i = 0;
-        else if (ready_days === 2) i = 1;
-        else if (ready_days === 3) i = 2;
-        else if (ready_days > 3 && ready_days <= 5) i = 3;
-        else if (ready_days > 5 && ready_days <= 8) i = 4;
-        else if (ready_days > 8 && ready_days <= 13) i = 5;
-        else i = 6;
+    if (!_.isEmpty(readyList)) {
+        for (let item of readyList) {
+            let ready_days =
+                item.squeeze && item.squeeze.days && item.squeeze.days[0];
+            let i = 0;
+            if (ready_days === 1) i = 0;
+            else if (ready_days === 2) i = 1;
+            else if (ready_days === 3) i = 2;
+            else if (ready_days > 3 && ready_days <= 5) i = 3;
+            else if (ready_days > 5 && ready_days <= 8) i = 4;
+            else if (ready_days > 8 && ready_days <= 13) i = 5;
+            else i = 6;
 
-        if (days[i]) {
-            days[i].push(item.tsCode);
-        } else {
-            days[i] = [item.tsCode];
+            if (days[i]) {
+                days[i].push(item.tsCode);
+            } else {
+                days[i] = [item.tsCode];
+            }
         }
     }
 
     let buyList = results && results[SQUEEZE.states.BUY];
     let bdays = [[], [], [], [], [], [], []];
-    for (let item of buyList) {
-        let buy_days =
-            item.squeeze && item.squeeze.days && item.squeeze.days[1];
-        let i = 0;
-        if (buy_days === 1) i = 0;
-        else if (buy_days === 2) i = 1;
-        else if (buy_days === 3) i = 2;
-        else if (buy_days > 3 && buy_days <= 5) i = 3;
-        else if (buy_days > 5 && buy_days <= 8) i = 4;
-        else if (buy_days > 8 && buy_days <= 13) i = 5;
-        else i = 7;
+    if (!_.isEmpty(buyList)) {
+        for (let item of buyList) {
+            let buy_days =
+                item.squeeze && item.squeeze.days && item.squeeze.days[1];
+            let i = 0;
+            if (buy_days === 1) i = 0;
+            else if (buy_days === 2) i = 1;
+            else if (buy_days === 3) i = 2;
+            else if (buy_days > 3 && buy_days <= 5) i = 3;
+            else if (buy_days > 5 && buy_days <= 8) i = 4;
+            else if (buy_days > 8 && buy_days <= 13) i = 5;
+            else i = 7;
 
-        if (bdays[i]) {
-            bdays[i].push(item.tsCode);
-        } else {
-            bdays[i] = [item.tsCode];
+            if (bdays[i]) {
+                bdays[i].push(item.tsCode);
+            } else {
+                bdays[i] = [item.tsCode];
+            }
         }
     }
 
     let reports = {
-        updateTime: moment().toISOString(),
-        squeeze: {
-            readyList: days,
-            buyList: bdays,
-        },
+        // updateTime: moment().toISOString(),
+        // squeeze: {
+        [SQUEEZE.states.READY]: days,
+        [SQUEEZE.states.BUY]: bdays,
+        // },
     };
 
     return reports;

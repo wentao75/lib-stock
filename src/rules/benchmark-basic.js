@@ -1,9 +1,9 @@
 import _ from "lodash";
-import engine from "./transaction-engine";
-import trans from "./transaction";
+import engine from "../transaction-engine";
+import trans from "../transaction";
 
 import debugpkg from "debug";
-const debug = debugpkg("benchmark");
+const debug = debugpkg("rules:benchmark");
 
 /**
  * 基准参数，用于测量正常买入卖出情况下的基准效果

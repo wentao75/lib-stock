@@ -1,10 +1,10 @@
 // const _ = require("lodash");
 import _ from "lodash";
 // const engine = require("./transaction-engine");
-import engine from "./transaction-engine";
-import trans from "./transaction";
+import engine from "../transaction-engine";
+import trans from "../transaction";
 import debugpkg from "debug";
-const debug = debugpkg("stoploss");
+const debug = debugpkg("rules:stoploss");
 
 const OPTIONS_NAME = "stoploss";
 
