@@ -1409,12 +1409,10 @@ async function search(options) {
         // TODO:
         for (let stateList of ruleData) {
           // let stateList = ruleData[state];
-          console.log(`stateList ${stateList.label}`);
-
+          // console.log(`stateList ${stateList.label}`);
           if (stateList && stateList.data.length > 0) {
             for (let codeList of stateList.data) {
-              console.log(`codeList ${codeList.label}`);
-
+              // console.log(`codeList ${codeList.label}`);
               if (codeList && codeList.data.length > 0) {
                 for (let code of codeList.data) {
                   if (dupList[code]) {
@@ -2674,7 +2672,10 @@ function checkTTM(index, ttmwave) {
 function check$1(index, stockData, options, tsCode) {
   let sdata = SQUEEZE.calculate(stockData, options.squeeze); // 使用TTMWave同步进行检查
 
-  let ttmwave = TTMWave.calculate(stockData, options.ttmwave);
+  let ttmwave = TTMWave.calculate(stockData, options.ttmwave); // 2020.10.10 增加一个针对Wave波浪趋势数量的参数，默认6个波浪至少有3个是对应的趋势发展，否则过滤掉
+
+  let need_condition_days = options && options.needCond || false;
+  let condition_days = options && options.cond || 3;
 
   if (stockData && _$1.isArray(stockData) && index < stockData.length && index >= 0) {
     let tradeDate = stockData[index].trade_date;
@@ -2683,7 +2684,7 @@ function check$1(index, stockData, options, tsCode) {
 
     if (sdata[6][index] === SQUEEZE.states.READY) {
       // 有信号
-      if (trends[0] >= 3 && trends[2] >= 3) {
+      if (!need_condition_days || trends[0] >= condition_days && trends[2] >= condition_days) {
         return {
           tsCode,
           dataIndex: index,
@@ -2702,7 +2703,7 @@ function check$1(index, stockData, options, tsCode) {
       }
     } else if (sdata[6][index] === SQUEEZE.states.BUY) {
       // 检查Wave ABC的趋势变化
-      if (trends[0] >= 3 && trends[2] >= 3) {
+      if (!need_condition_days || trends[0] >= condition_days && trends[2] >= condition_days) {
         return {
           tsCode,
           dataIndex: index,
@@ -2720,7 +2721,7 @@ function check$1(index, stockData, options, tsCode) {
         };
       }
     } else if (sdata[6][index] === SQUEEZE.states.SELL && options.squeeze.needSell) {
-      if (trends[1] <= 3 && trends[3] <= 3) {
+      if (!need_condition_days || trends[1] <= condition_days && trends[3] <= condition_days) {
         return {
           tsCode,
           dataIndex: index,

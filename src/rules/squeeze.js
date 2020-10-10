@@ -43,6 +43,9 @@ function check(index, stockData, options, tsCode) {
 
     // 使用TTMWave同步进行检查
     let ttmwave = TTMWave.calculate(stockData, options.ttmwave);
+    // 2020.10.10 增加一个针对Wave波浪趋势数量的参数，默认6个波浪至少有3个是对应的趋势发展，否则过滤掉
+    let need_condition_days = (options && options.needCond) || false;
+    let condition_days = (options && options.cond) || 3;
 
     if (
         stockData &&
@@ -55,7 +58,10 @@ function check(index, stockData, options, tsCode) {
         let trends = checkTTM(index, ttmwave);
         if (sdata[6][index] === SQUEEZE.states.READY) {
             // 有信号
-            if (trends[0] >= 3 && trends[2] >= 3) {
+            if (
+                !need_condition_days ||
+                (trends[0] >= condition_days && trends[2] >= condition_days)
+            ) {
                 return {
                     tsCode,
                     dataIndex: index,
@@ -74,7 +80,10 @@ function check(index, stockData, options, tsCode) {
             }
         } else if (sdata[6][index] === SQUEEZE.states.BUY) {
             // 检查Wave ABC的趋势变化
-            if (trends[0] >= 3 && trends[2] >= 3) {
+            if (
+                !need_condition_days ||
+                (trends[0] >= condition_days && trends[2] >= condition_days)
+            ) {
                 return {
                     tsCode,
                     dataIndex: index,
@@ -95,7 +104,10 @@ function check(index, stockData, options, tsCode) {
             sdata[6][index] === SQUEEZE.states.SELL &&
             options.squeeze.needSell
         ) {
-            if (trends[1] <= 3 && trends[3] <= 3) {
+            if (
+                !need_condition_days ||
+                (trends[1] <= condition_days && trends[3] <= condition_days)
+            ) {
                 return {
                     tsCode,
                     dataIndex: index,
