@@ -13,6 +13,7 @@ import smashday from "./rules/smashday";
 import squeeze from "./rules/squeeze";
 import swing from "./rules/swing";
 import holp from "./rules/holp";
+import rsi from "./rules/rsi-panic";
 
 import MA from "./indicators/ma";
 import ATR from "./indicators/atr";
@@ -24,6 +25,7 @@ import SQUEEZE from "./indicators/squeeze";
 import TTMWave from "./indicators/ttmwave";
 import TTMTrend from "./indicators/ttmtrend";
 import Scalper from "./indicators/scalper";
+import RSI from "./indicators/rsi";
 import utils from "./utils";
 
 import favorites from "./favorites";
@@ -39,6 +41,7 @@ const indicators = {
     TTMWave,
     TTMTrend,
     Scalper,
+    RSI,
 };
 
 const rules = {
@@ -51,6 +54,7 @@ const rules = {
     squeeze,
     swing,
     holp,
+    rsi,
 };
 
 export {
