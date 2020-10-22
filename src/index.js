@@ -14,6 +14,7 @@ import squeeze from "./rules/squeeze";
 import swing from "./rules/swing";
 import holp from "./rules/holp";
 import rsi from "./rules/rsi-panic";
+import vixfix from "./rules/vixfix";
 
 import MA from "./indicators/ma";
 import ATR from "./indicators/atr";
@@ -26,6 +27,7 @@ import TTMWave from "./indicators/ttmwave";
 import TTMTrend from "./indicators/ttmtrend";
 import Scalper from "./indicators/scalper";
 import RSI from "./indicators/rsi";
+import WVF from "./indicators/wvf";
 import utils from "./utils";
 
 import favorites from "./favorites";
@@ -42,6 +44,7 @@ const indicators = {
     TTMTrend,
     Scalper,
     RSI,
+    WVF,
 };
 
 const rules = {
@@ -55,6 +58,7 @@ const rules = {
     swing,
     holp,
     rsi,
+    vixfix,
 };
 
 export {

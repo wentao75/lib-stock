@@ -83,7 +83,7 @@ function toFixed(num, digits = 3) {
 }
 
 function checkOrder(array) {
-  return array && _$1.isArray(array) && array.length > 1 && array[0].trade_date > array[array.length - 1].trade_date;
+  return array && _$1.isArray(array) && array.length > 1 && _$1.isObject(array[0]) && _$1.has(array[0], "trade_date") && array[0].trade_date > array[array.length - 1].trade_date;
 }
 
 function average(array, index, n, prop, digits = 3) {
@@ -119,6 +119,44 @@ function average(array, index, n, prop, digits = 3) {
     //         }, 0) / n
     // );
 
+  }
+}
+
+function highest(array, index, n, prop, digits = 3) {
+  if (index >= 0 && array && Array.isArray(array) && array.length > index && n > 0) {
+    let lastIndex = index - n + 1;
+
+    if (lastIndex < 0 || lastIndex >= array.length) {
+      return;
+    }
+
+    let tmp = readData(array[index], prop);
+
+    for (let i = 1; i < n; i++) {
+      if (index - i < 0 || index - i >= array.length) continue;
+      tmp = Math.max(tmp, readData(array[index - i], prop));
+    }
+
+    return tmp;
+  }
+}
+
+function lowest(array, index, n, prop, digits = 3) {
+  if (index >= 0 && array && Array.isArray(array) && array.length > index && n > 0) {
+    let lastIndex = index - n + 1;
+
+    if (lastIndex < 0 || lastIndex >= array.length) {
+      return;
+    }
+
+    let tmp = readData(array[index], prop);
+
+    for (let i = 1; i < n; i++) {
+      if (index - i < 0 || index - i >= array.length) continue;
+      tmp = Math.min(tmp, readData(array[index - i], prop));
+    }
+
+    return tmp;
   }
 }
 
@@ -196,6 +234,43 @@ function hl(data) {
   }
 }
 /**
+ * 用于计算数组数据的布林线结果，返回数组
+ * @param {Array} array 数据数组
+ * @param {number} n 均线周期
+ * @param {number} multi 布林线偏差倍数
+ * @param {number}} digits 保留小数位数
+ */
+
+
+function boll(array, n = 20, multi = 2.0, prop = null, digits = 3) {
+  let ret = [];
+  let ma = sma(array, n, prop, digits);
+  if (!ma) return;
+  let std = stdev(array, n, prop, digits);
+  if (!std) return;
+  let up = [];
+  let down = [];
+
+  for (let i = 0; i < ma.length; i++) {
+    up[i] = toFixed(ma[i] + multi * std[i], digits);
+    down[i] = toFixed(ma[i] - multi * std[i], digits);
+    ret[i] = [ma[i], up[i], down[i], std[i]];
+  } // return [ma, up, down, stdev];
+
+
+  return ret;
+} // function osc(array, prop = null, n = 14, digits = 3) {
+//     if (array && Array.isArray(array) && array.length > 0 && n > 0) {
+//         let ret = [];
+//         for (let i = 0; i < array.length; i++) {
+//             let ohc = highest(array, i, n, prop, digits);
+//             let olc = lowest(array, i, n, prop, digits);
+//             osc =
+//         }
+//     }
+// }
+
+/**
  *
  * @param {Array} array 数据数组
  * @param {number} n 平均天数
@@ -257,7 +332,10 @@ var utils = {
   hl,
   readData,
   toFixed,
-  checkTradeData
+  checkTradeData,
+  boll,
+  highest,
+  lowest
 };
 
 const debug = debugpkg("engine");
@@ -2272,7 +2350,7 @@ var KC = {
  *
  */
 
-function boll(tradeData, options) {
+function boll$1(tradeData, options) {
   utils.checkTradeData(tradeData);
   let ma = MA.calculate(tradeData, {
     n: options.n,
@@ -2298,7 +2376,7 @@ var BOLL = {
   name: "BOLL",
   label: "布林线",
   description: "布林线指标",
-  calculate: boll
+  calculate: boll$1
 };
 
 /**
@@ -4050,6 +4128,242 @@ const RSI_PANIC = {
 };
 
 /**
+ * WVF指标，Williams VIX Fix
+ *
+ * 参数
+ *  n: 表示回看天数
+ *  digits: 保留小数位数
+ *
+ * RSI = 100-[1/1+（avg(gain)/avg(loss)]
+ */
+/**
+ * 计算WVF指标
+ * @param {Array} tradeData 数据数组
+ * @param {*} options 参数配置，RSI包含n属性
+ */
+
+function wvf(tradeData, {
+  n = 4,
+  digits = 3
+} = {}) {
+  utils.checkTradeData(tradeData);
+
+  if (_$1.isEmpty(tradeData) || !_$1.isArray(tradeData) || tradeData.length <= 0) {
+    return;
+  } // wvf = ((highest(close, n)-low)/(highest(close, n)))*100
+
+
+  let wvf = [];
+
+  if (!_$1.isNil(tradeData) && !_$1.isEmpty(tradeData)) {
+    let highest = 0.0;
+
+    for (let i = 0; i < tradeData.length; i++) {
+      if (i < n - 1) {
+        continue;
+      }
+
+      highest = 0.0;
+
+      for (let j = 0; j < n; j++) {
+        let close = tradeData[i - j].close;
+        highest = highest >= close ? highest : close;
+      }
+
+      wvf[i] = 100.0 * (highest - tradeData[i].low) / highest;
+    }
+  }
+
+  return wvf;
+}
+
+var WVF = {
+  name: "WVF",
+  label: "VIX Fix",
+  description: "用于计算市场恐慌程度",
+  calculate: wvf
+};
+
+const debug$f = debugpkg("rules:vixfix");
+const OPTIONS_NAME$4 = "vixfix";
+const RULE_NAME$7 = "vixfix";
+const WVF_DATA = Symbol("WVF_DATA"); // const MA_DATA = Symbol("MA_DATA");
+
+/**
+ * VIX Fix中需要计算WVF，对应的布林带，对应的
+ * @param {*} stockData
+ * @param {*} options 配置参数
+ */
+
+function calculateData$1(stockData, options) {
+  if (_$1.isNil(stockData)) return;
+
+  if (_$1.isNil(stockData[WVF_DATA])) {
+    let wvf = WVF.calculate(stockData, {
+      n: options.vixfix.n,
+      digits: options.vixfix.digits
+    });
+    let boll = utils.boll(wvf, options.vixfix.bn, options.vixfix.multi, null, options.vixfix.digits);
+    stockData[WVF_DATA] = [wvf, boll];
+  }
+}
+
+function check$5(index, stockData, options, tsCode) {
+  calculateData$1(stockData, options);
+
+  if (stockData && _$1.isArray(stockData) && index < stockData.length && index >= 0) {
+    let tradeDate = stockData[index].trade_date;
+    let [wvfData, bollData] = stockData[WVF_DATA];
+
+    if (checkBuyCondition$1(index, stockData, options)) {
+      // 买入信号
+      return {
+        tsCode,
+        dataIndex: index,
+        date: tradeDate,
+        tradeType: "buy",
+        hasSignals: true,
+        signal: "BUY",
+        type: "WVF",
+        memo: `WVF恐慌买入 [${stockData[index].trade_date}] ${wvfData[index].toFixed(2)}`
+      };
+    }
+  }
+}
+
+function checkBuyCondition$1(index, stockData, options) {
+  let wvfoptions = options && options[OPTIONS_NAME$4]; // 检查WVF最大值的回看天数
+
+  let lbn = wvfoptions && wvfoptions.lbn || 50;
+  let ph = wvfoptions && wvfoptions.ph || 0.9; // 默认90%
+
+  if (lbn < 1 || lbn > index) return false;
+  let [wvfData, bollData] = stockData[WVF_DATA]; // let currentData = stockData[index];
+  // 买入条件主要是 wvf 超过 boll上限；或者wvf超过最近一段时间最高wvf的ph倍
+
+  if (wvfData[index] >= bollData[index][1]) return true;
+  let rangeHigh = utils.highest(wvfData, index, lbn + 1, null) * ph;
+  if (wvfData[index] >= rangeHigh) return true;
+  return false;
+}
+/**
+ * 检查买入条件
+ * @param {*} stockInfo 股票信息
+ * @param {double} balance 账户余额
+ * @param {*} tradeDate 交易日期
+ * @param {int} index 交易日数据索引位置
+ * @param {*} stockData 数据
+ * @param {*} options 算法参数
+ */
+
+
+function checkBuyTransaction$7(stockInfo, balance, index, stockData, options) {
+  if (balance <= 0) return;
+  calculateData$1(stockData, options); // debug(`买入检查: ${balance}, ${tradeDate}, %o, ${index}`, stockData);
+  // let wvfoptions = options && options[OPTIONS_NAME];
+
+  let currentData = stockData[index];
+  let targetPrice = currentData.close;
+  let tradeDate = stockData[index].trade_date;
+  let [wvfData, bollData] = stockData[WVF_DATA];
+
+  if (checkBuyCondition$1(index, stockData, options)) {
+    debug$f(`买入条件检查${tradeDate}: ${targetPrice.toFixed(2)} [WVF: ${wvfData[index].toFixed(2)}, boll上限 ${bollData[index][1].toFixed(2)}]`);
+    return trans.createBuyTransaction(stockInfo, tradeDate, index, balance, targetPrice, "WVF", `WVF恐慌买入 ${targetPrice.toFixed(2)}, ${wvfData[index].toFixed(2)}`);
+  }
+}
+/**
+ * 检查是否可以生成卖出交易，如果可以卖出，产生卖出交易记录
+ *
+ * @param {*} info 股票信息
+ * @param {*} stock 持仓信息
+ * @param {*} index 今日数据索引位置
+ * @param {*} stockData 日线数据
+ * @param {*} options 算法参数
+ */
+
+
+function checkSellTransaction$7(stockInfo, stock, index, stockData, options) {// if (_.isEmpty(stock) || stock.count <= 0) return;
+  // if (checkSellCondition(index, stockData, options)) {
+  //     debug(
+  //         `卖出条件检查${tradeDate}: ${targetPrice.toFixed(2)}[昨日 rsi: ${
+  //             rsiData[index - 1]
+  //         }, 今日rsi : ${rsiData[index]}, 上穿 ${short.toFixed(2)}
+  //         }]`
+  //     );
+  //     return trans.createSellTransaction(
+  //         stockInfo,
+  //         tradeDate,
+  //         index,
+  //         stock.count,
+  //         targetPrice,
+  //         "WVF",
+  //         `WVF恐慌卖出 ${targetPrice.toFixed(2)}, ${rsiData[index].toFixed(
+  //             2
+  //         )}`
+  //     );
+  // }
+}
+/**
+ * 将搜索得到的列表生成分析报表
+ *
+ * @param {*} results 搜索的匹配列表
+ * @param {*} options 匹配使用的参数
+ */
+
+
+async function createReports$4(results, options) {
+  if (_$1.isNil(results)) return;
+  let reports = [];
+  let buyList = results && results["BUY"];
+  let bdays = [{
+    label: "全部",
+    data: []
+  }];
+
+  if (!_$1.isEmpty(buyList)) {
+    for (let item of buyList) {
+      bdays[0].data.push(item.tsCode);
+    }
+
+    reports.push({
+      label: "买入",
+      data: bdays
+    });
+  }
+
+  return reports;
+}
+/**
+ * 返回参数配置的显示信息
+ * @param {*}} opions 参数配置
+ */
+
+
+function showOptions$a(options) {
+  return `
+模型 ${WVF_PANIC.name}[${WVF_PANIC.label}] 参数：
+WVF计算周期 [${options.vixfix.n}]
+
+WVF布林带参数 [天数: ${options.vixfix.bn}, 倍数: ${options.vixfix.multi} ]
+
+WVF交易值检查 [周期: ${options.vixfix.lbn}, 最大值倍数: ${options.vixfix.ph * 100}%]
+`;
+}
+
+const WVF_PANIC = {
+  name: "WVF恐慌",
+  label: RULE_NAME$7,
+  description: "WVF恐慌买卖",
+  methodTypes: {},
+  checkBuyTransaction: checkBuyTransaction$7,
+  checkSellTransaction: checkSellTransaction$7,
+  check: check$5,
+  showOptions: showOptions$a,
+  createReports: createReports$4
+};
+
+/**
  * 基本动量指标
  *
  * 参数：
@@ -4388,7 +4702,8 @@ const indicators = {
   TTMWave,
   TTMTrend,
   Scalper,
-  RSI
+  RSI,
+  WVF
 };
 const rules = {
   mmb,
@@ -4400,7 +4715,8 @@ const rules = {
   squeeze: squeeze$1,
   swing,
   holp,
-  rsi: RSI_PANIC
+  rsi: RSI_PANIC,
+  vixfix: WVF_PANIC
 };
 
 export { engine, favorites, indicators, reports, rules, search$1 as search, simulate, utils };

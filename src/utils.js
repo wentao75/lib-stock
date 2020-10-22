@@ -89,6 +89,8 @@ function checkOrder(array) {
         array &&
         _.isArray(array) &&
         array.length > 1 &&
+        _.isObject(array[0]) &&
+        _.has(array[0], "trade_date") &&
         array[0].trade_date > array[array.length - 1].trade_date
     );
 }
@@ -130,6 +132,50 @@ function average(array, index, n, prop, digits = 3) {
         //             return total + item;
         //         }, 0) / n
         // );
+    }
+}
+
+function highest(array, index, n, prop, digits = 3) {
+    if (
+        index >= 0 &&
+        array &&
+        Array.isArray(array) &&
+        array.length > index &&
+        n > 0
+    ) {
+        let lastIndex = index - n + 1;
+        if (lastIndex < 0 || lastIndex >= array.length) {
+            return;
+        }
+
+        let tmp = readData(array[index], prop);
+        for (let i = 1; i < n; i++) {
+            if (index - i < 0 || index - i >= array.length) continue;
+            tmp = Math.max(tmp, readData(array[index - i], prop));
+        }
+        return tmp;
+    }
+}
+
+function lowest(array, index, n, prop, digits = 3) {
+    if (
+        index >= 0 &&
+        array &&
+        Array.isArray(array) &&
+        array.length > index &&
+        n > 0
+    ) {
+        let lastIndex = index - n + 1;
+        if (lastIndex < 0 || lastIndex >= array.length) {
+            return;
+        }
+
+        let tmp = readData(array[index], prop);
+        for (let i = 1; i < n; i++) {
+            if (index - i < 0 || index - i >= array.length) continue;
+            tmp = Math.min(tmp, readData(array[index - i], prop));
+        }
+        return tmp;
     }
 }
 
@@ -206,6 +252,46 @@ function hl(data) {
 }
 
 /**
+ * 用于计算数组数据的布林线结果，返回数组
+ * @param {Array} array 数据数组
+ * @param {number} n 均线周期
+ * @param {number} multi 布林线偏差倍数
+ * @param {number}} digits 保留小数位数
+ */
+function boll(array, n = 20, multi = 2.0, prop = null, digits = 3) {
+    let ret = [];
+    let ma = sma(array, n, prop, digits);
+    if (!ma) return;
+
+    let std = stdev(array, n, prop, digits);
+    if (!std) return;
+
+    let up = [];
+    let down = [];
+    for (let i = 0; i < ma.length; i++) {
+        up[i] = toFixed(ma[i] + multi * std[i], digits);
+        down[i] = toFixed(ma[i] - multi * std[i], digits);
+
+        ret[i] = [ma[i], up[i], down[i], std[i]];
+    }
+
+    // return [ma, up, down, stdev];
+    return ret;
+}
+
+// function osc(array, prop = null, n = 14, digits = 3) {
+//     if (array && Array.isArray(array) && array.length > 0 && n > 0) {
+//         let ret = [];
+
+//         for (let i = 0; i < array.length; i++) {
+//             let ohc = highest(array, i, n, prop, digits);
+//             let olc = lowest(array, i, n, prop, digits);
+//             osc =
+//         }
+//     }
+// }
+
+/**
  *
  * @param {Array} array 数据数组
  * @param {number} n 平均天数
@@ -262,4 +348,7 @@ export default {
     readData,
     toFixed,
     checkTradeData,
+    boll,
+    highest,
+    lowest,
 };
