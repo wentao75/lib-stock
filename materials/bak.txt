@@ -1,0 +1,238 @@
+// 2020.10.24 Wen Tao
+// Wave A&B&C 算法
+
+//@version=4
+study(title="TTM Wave A & B & C", shorttitle="TTMWave", precision = 2)
+
+usewa = input(true, title = "Wave A", type=input.bool)
+
+// usewb = input(false, title = "Wave B", type=input.bool)
+// usewc = input(false, title = "Wave C", type=input.bool)
+
+usewb = input(true, title="趋势背景（选择Wave B，不选Wave C）", type=input.bool)
+
+// WAVE CALC
+// Wave A
+fastMA1 = ema(close, 8)
+slowMA1 = ema(close, 34)
+macd1 =  fastMA1 - slowMA1
+signal1 =  ema(macd1, 34)
+hist1 =  macd1 - signal1
+
+fastMA2 = ema(close, 8)
+slowMA2 = ema(close, 55)
+macd2 = fastMA2 - slowMA2
+signal2 = ema(macd2, 55)
+hist2 = macd2 - signal2
+
+// Wave B
+fastMA3 = ema(close, 8)
+slowMA3 = ema(close, 89)
+macd3 = fastMA3 - slowMA3
+signal3 = ema(macd3, 89)
+hist3 = macd3 - signal3
+
+fastMA4 = ema(close, 8)
+slowMA4 = ema(close, 144)
+macd4 = fastMA4 - slowMA4
+signal4 = ema(macd4, 144)
+hist4 = macd4 - signal4
+
+// Wave C
+fastMA5 = ema(close, 8)
+slowMA5 = ema(close, 233)
+macd5 = fastMA5 - slowMA5
+signal5 = ema(macd5, 233)
+hist5 = macd5 - signal5
+
+fastMA6 = ema(close, 8)
+slowMA6 = ema(close, 377)
+macd6 = fastMA6 - slowMA6
+// signal6 = usewc ? ema(macd6, 377) : na
+// hist6 = usewc ? macd6 - signal6 : na
+
+// PLOTs
+//plot(hist6, color=#FF0000, style=plot.style_histogram, title="Wave C1", linewidth=3)
+// tspc = usewc?0:100
+// plot(usewc?macd6:na, color=#FF0000, style=plot.style_histogram, title="Wave C1", linewidth=3)
+// plot(usewc?hist5:na, color=#FF8C00, style=plot.style_histogram, title="Wave C2", linewidth=3)
+
+// tspb = usewb?0:100
+plot(usewb?hist4:macd6, color=usewb?#FF00FF:#FF0000, style=plot.style_line, title="趋势线1", linewidth=1)
+plot(usewb?hist3:hist5, color=usewb?#0000FF:#FF8C00, style=plot.style_line, title="趋势线2", linewidth=1)
+
+// tspa = usewa?0:100
+plot(usewa?hist2:na, color=#008000, style=plot.style_histogram, title="Wave A1", linewidth=3)
+plot(usewa?hist1:na, color=#DAA520, style=plot.style_histogram, title="Wave A2", linewidth=3)
+
+colora1 = (hist1 - nz(hist1[1]) >=0 and hist2-nz(hist2[1])>=0) ? color.red : (hist1 - nz(hist1[1]) >=0 or hist2-nz(hist2[1])>=0) ? color.orange : color.gray
+plot(0.0, color=colora1, style=plot.style_circles, title="上涨趋势", linewidth=3)
+
+bcolor = usewb ? ((hist4 >=0 and hist3 >=0) ? na: (hist4  >=0 or hist3 >=0) ? color.orange : color.gray) : ((hist5 >=0 and macd6 >=0) ? na: (hist5  >=0 or macd6 >=0) ? color.orange : color.gray)
+bgcolor(bcolor, 80)
+// hline(0, color=color.black, title = "零线", linewidth = 1, linestyle = hline.style_solid)
+
+
+//////
+
+//@version=4
+study(title="WVF_Ultimate_Filtered_Alerts_V1", shorttitle="WVF_V1", overlay=false)
+//参数设置
+pd = input(22, title="LookBack Period Standard Deviation High", type=input.integer)
+bbl = input(20, title="布林带周期", type=input.integer)
+mult = input(2.0    , minval=1, maxval=5, title="布林带倍数", type=input.float)
+lb = input(50  , title="MVF最大值检查周期", type=input.integer)
+ph = input(.85, title="MVF最大值比例 - 0.90=90%, 0.95=95%, 0.99=99%", type=input.float)
+new = input(false, title="-------高亮日线 使用原始信号规则-------" )
+sbc = input(true, title="WVF信号消失（重新进入布林带）", type=input.bool)
+sbcc = input(false, title="WVF信号", type=input.bool)
+new2 = input(false, title="-------使用过滤规则高亮日线-------" )
+sbcFilt = input(true, title="对过滤条目显示高亮")
+sbcAggr = input(false, title="对主动过滤条目显示高亮")
+new3 = input(false, title="Check Below to turn All Bars Gray, Then Check the Boxes Above, And your will have Same Colors As VixFix")
+sgb = input(false, title="Check Box To Turn Bars Gray?")
+//Criteria for Down Trend Definition for Filtered Pivots and Aggressive Filtered Pivots
+ltLB = input(40, minval=25, maxval=99, title="Long-Term Look Back Current Bar Has To Close Below This Value OR Medium Term--Default=40")
+mtLB = input(14, minval=10, maxval=20, title="Medium-Term Look Back Current Bar Has To Close Below This Value OR Long Term--Default=14")
+str = input(3, minval=1, maxval=9, title="Entry Price Action Strength--Close > X Bars Back---Default=3")
+//Alerts Instructions and Options Below...Inputs Tab
+new4 = input(false, title="-------------------------Turn On/Off ALERTS Below---------------------" )
+new5 = input(false, title="----To Activate Alerts You HAVE To Check The Boxes Below For Any Alert Criteria You Want----")
+new6 = input(false, title="----You Can Un Check The Box BELOW To Turn Off the WVF Histogram And Just See True/False Alert Criteria----")
+swvf = input(true, title="显示WVF柱线图!")
+sa1 = input(false, title="显示WVF报警 WVF = True?")
+sa2 = input(false, title="显示WVF报警结束?")
+sa3 = input(false, title="显示WVF过滤信号?")
+sa4 = input(false, title="显示WVF主动过滤信号?")
+
+//Williams Vix Fix Formula
+wvf = ((highest(close, pd)-low)/(highest(close, pd)))*100
+sDev = mult * stdev(wvf, bbl)
+midLine = sma(wvf, bbl)
+lowerBand = midLine - sDev
+upperBand = midLine + sDev
+rangeHigh = (highest(wvf, lb)) * ph
+
+//Filtered Bar Criteria
+upRange = low > low[1] and close > high[1]
+upRange_Aggr = close > close[1] and close > open[1]
+//Filtered Criteria
+filtered = ((wvf[1] >= upperBand[1] or wvf[1] >= rangeHigh[1]) and (wvf < upperBand and wvf < rangeHigh))
+filtered_Aggr = (wvf[1] >= upperBand[1] or wvf[1] >= rangeHigh[1]) and not (wvf < upperBand and wvf < rangeHigh)
+
+//Alerts Criteria
+// 仅表达WVF指标超出布林带或者最近高值范围
+alert1 = wvf >= upperBand or wvf >= rangeHigh ? 1 : 0
+// 昨日alert1，且今日没有alert1
+alert2 = (wvf[1] >= upperBand[1] or wvf[1] >= rangeHigh[1]) and (wvf < upperBand and wvf < rangeHigh) ? 1 : 0
+// 相比昨日价位走高，且 大于制定日价格（最近上升）；但是 相比中期或长期价格低；且昨日有WVF至少一个信号
+alert3 = upRange and close > close[str] and (close < close[ltLB] or close < close[mtLB]) and filtered ? 1 : 0
+// 今日价位走高（也高于昨日开盘）；且高于短期几日的价格（表达最近上升）；且 中长期价格较低；昨日有至少一个WVF信号，今日也至少有一个信号
+alert4 = upRange_Aggr and close > close[str] and (close < close[ltLB] or close < close[mtLB]) and filtered_Aggr ? 1 : 0
+
+//Highlight Bar Criteria
+barcolor(sbcAggr and alert4 ? color.orange : na)
+barcolor(sbcFilt and alert3 ? color.fuchsia : na)
+barcolor(sbc and ((wvf[1] >= upperBand[1] or wvf[1] >= rangeHigh[1]) and (wvf < upperBand and wvf < rangeHigh)) ? color.aqua : na)
+barcolor(sbcc and (wvf >= upperBand or wvf >= rangeHigh) ? color.lime : na)
+barcolor(sgb and close ? color.gray : na)
+
+//Coloring Criteria of Williams Vix Fix
+col = wvf >= upperBand or wvf >= rangeHigh ? color.lime : color.gray
+
+//Plots for Williams Vix Fix Histogram and Alerts
+plot(swvf and wvf ? wvf * -1 : na, title="Williams Vix Fix", style=plot.style_columns, linewidth = 4, color=col)
+plot(sa1 and alert1 ? alert1 : 0, title="Alert If WVF = True", style=plot.style_line, linewidth=2, color=color.lime)
+plot(sa2 and alert2 ? alert2 : 0, title="Alert If WVF Was True Now False", style=plot.style_line, linewidth=2, color=color.aqua)
+plot(sa3 and alert3 ? alert3 : 0, title="Alert Filtered Entry", style=plot.style_line, linewidth=2, color=color.fuchsia)
+plot(sa4 and alert4 ? alert4 : 0, title="Alert Aggressive Filtered Entry", style=plot.style_line, linewidth=2, color=color.orange)
+
+//////
+
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Wen Tao
+
+//@version=4
+study("VIX Fix")
+// VIX Fix参数
+n = input(defval=22, title="周期天数", type=input.integer, minval=1)
+// 振荡器参数
+on = input(defval=14, title="振荡器周期", type=input.integer, minval=1)
+oup = input(defval=85.0, title="振荡器信号上限", type=input.float)
+odn = input(defval=20.0, title="振荡器信号下限", type=input.float)
+smooth=input(defval=5, title="振荡器均值", type=input.integer)
+// WVF计算
+hc = highest(close, n)
+wvf = 100.0*(hc-low)/hc
+
+// WVF振荡器计算
+ohc = highest(wvf, on)
+olc = lowest(wvf, on)
+osc = 100.0*(wvf-olc)/(ohc-olc)
+// osc8 = sma(osc, smooth)
+osc8 = linreg(osc, smooth, 0)
+// osc21 = sma(osc, 21)
+// 操作信号
+signal1 = osc>oup ? osc : osc<odn ? osc : na
+signal2 = osc8>oup ? osc8 : osc8<odn ? osc8 : na
+
+osc1color = osc>oup ? color.red : osc<odn ? color.lime : color.gray
+osc2color = osc8>oup ? color.red : osc8<odn ? color.lime : color.gray
+
+// plot(wvf, style=plot.style_histogram, color=color.gray, linewidth=3)
+plot(oup, color=color.black)
+plot(odn, color=color.black)
+plot(osc, style=plot.style_line, color=color.yellow)
+plot(signal1, style=plot.style_circles, color=osc1color, linewidth=2)
+// plot(signal2, style=plot.style_circles, color=osc2color, linewidth=3)
+plot(osc8, style=plot.style_line, color=osc2color, linewidth=1) //.red)
+// plot(osc21, style=plot.style_line, color=color.orange)
+
+////////
+// Variation - Lazybear Squeeze Indicator
+// Recreated and Modified by UCSgears
+// Added Options to detect squeeze using Heikin Ashi Candle
+// Added Options to use BBR or Momentum (ROC) for the Momentum Histogram
+// Custom Momentum Smoothing
+// Removed the Seperate Lookback periods for BB/KC - Since this doesn't really make sense in using a different lengths. 
+
+//@version=4
+study(shorttitle = "SQUEEZE_V1", title="Squeeze Momentum - Version 1", overlay=false)
+
+length = input(20, title="鸡排周期", type=input.integer)
+multBB = input(2,title="布林带倍数", type=input.float)
+multKC = input(1.5, title="KC倍数", type=input.float)
+useEMA = input(false, title="使用EMA平均", type=input.bool)
+mtmlen = input(12, title="MTM动量周期", type=input.integer)
+smooth = input(1, title = "MTM平滑（1 表示使用MTM）", type=input.integer)
+
+usebbr = input(false, title = "使用布林带计算动量方向", type = input.bool)
+useHAC = input(false, title = "使用OHLC均值替换价格", type=input.bool)
+useTrueRange = input(true, title="使用TrueRange (KC)", type=input.bool)
+
+// Calculate BB
+source = useHAC ? ohlc4 : close
+basis = useEMA ? ema(source, length) : sma(source, length)
+dev = multBB * stdev(source, length)
+upperBB = basis + dev
+lowerBB = basis - dev
+
+// Calculate KC
+ma = useEMA ? ema(source, length) : sma(source, length)
+range = useTrueRange ? tr : (high - low)
+rangema = useEMA ? ema(range, length): sma(range, length)
+upperKC = ma + rangema * multKC
+lowerKC = ma - rangema * multKC
+
+sqzOn  = (lowerBB > lowerKC) and (upperBB < upperKC)
+sqzOff = (lowerBB < lowerKC) and (upperBB > upperKC)
+noSqz  = (sqzOn == false) and (sqzOff == false)
+
+momentum = usebbr ? (((source - lowerBB)/(upperBB - lowerBB))-0.5) : (((close - close[mtmlen])/close[mtmlen])*100)
+
+val = sma(momentum,smooth)
+
+bcolor = iff( val > 0, iff( val > nz(val[1]), color.red, color.orange), iff( val < nz(val[1]), color.green, color.blue))
+plot(val, color=bcolor, style=plot.style_histogram, linewidth=3)
+scolor = noSqz ? color.blue : sqzOn ? color.orange : color.lime
+plot(0, color=scolor, style=plot.style_circles, linewidth=3)

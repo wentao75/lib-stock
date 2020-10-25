@@ -117,7 +117,7 @@ function ttmwave(
     let signal6 = usec ? utils.ma(macd6, mc, null, "ema", digits) : null;
     let hist6 = usec ? subtract(macd6, signal6, digits) : null;
 
-    return [hist1, hist2, hist3, hist4, hist5, hist6, macd6];
+    return [hist1, hist2, hist3, hist4, hist5, macd6, hist6];
 }
 
 export default {
