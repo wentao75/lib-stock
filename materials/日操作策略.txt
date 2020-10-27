@@ -1,0 +1,270 @@
+// 这个脚本用于每日数据的查看，给出明确的操作信号，买入和卖出！
+// © wentao75
+
+//@version=4
+// strategy(shorttitle = "RSI恐慌v1", title="RSI恐慌策略 v1.0", overlay = false, default_qty_type = strategy.cash, default_qty_value = 1000000, pyramiding = 0)
+strategy("日交易策略", overlay=true, default_qty_type = strategy.cash, default_qty_value = 1000000, pyramiding = 0, commission_type=strategy.commission.percent, commission_value=0.077)
+// study("鸡排操作策略", overlay=true)
+
+// TTM Wave ABC指标
+// 配置
+limit = input(-0.01, title="短期趋势差值下限（去除小波动带来的出局）", maxval=0.0, type=input.float)
+usewa = input(true, title = "TTM波A", type=input.bool)
+usewb = input(true, title="趋势背景（波B或波C）", type=input.bool)
+
+// Squeeze 参数
+length = input(20, title="Squeeze周期", type=input.integer)
+multBB = input(2,title="布林带倍数", type=input.float)
+multKC = input(1.5, title="KC倍数", type=input.float)
+useEMA = input(false, title="使用EMA平均", type=input.bool)
+mtmlen = input(12, title="MTM动量周期", type=input.integer)
+mtmSmooth = input(1, title = "MTM平滑（1 表示使用MTM）", type=input.integer)
+
+// usebbr = input(false, title = "使用布林带计算动量方向", type = input.bool)
+useHAC = input(true, title = "使用OHLC均值替换价格", type=input.bool)
+useTrueRange = input(true, title="使用TrueRange (KC)", type=input.bool)
+
+// WVF 参数
+//参数设置
+pd = input(22, title="LookBack Period Standard Deviation High", type=input.integer)
+bbl = input(20, title="布林带周期", type=input.integer)
+mult = input(2.0    , minval=1, maxval=5, title="布林带倍数", type=input.float)
+lb = input(50  , title="MVF最大值检查周期", type=input.integer)
+ph = input(.85, title="MVF最大值比例 - 0.90=90%, 0.95=95%, 0.99=99%", type=input.float)
+
+sbc = input(true, title="WVF信号消失（重新进入布林带）", type=input.bool)
+sbcc = input(false, title="WVF信号", type=input.bool)
+
+sbcFilt = input(true, title="对过滤条目显示高亮")
+sbcAggr = input(false, title="对主动过滤条目显示高亮")
+
+sgb = input(false, title="Check Box To Turn Bars Gray?")
+//Criteria for Down Trend Definition for Filtered Pivots and Aggressive Filtered Pivots
+ltLB = input(40, minval=25, maxval=99, title="Long-Term Look Back Current Bar Has To Close Below This Value OR Medium Term--Default=40")
+mtLB = input(14, minval=10, maxval=20, title="Medium-Term Look Back Current Bar Has To Close Below This Value OR Long Term--Default=14")
+stLB = input(3, minval=1, maxval=9, title="Entry Price Action Strength--Close > X Bars Back---Default=3")
+//Alerts Instructions and Options Below...Inputs Tab
+
+// swvf = input(true, title="显示WVF柱线图!")
+// sa1 = input(false, title="显示WVF报警 WVF = True?")
+// sa2 = input(false, title="显示WVF报警结束?")
+// sa3 = input(false, title="显示WVF过滤信号?")
+// sa4 = input(false, title="显示WVF主动过滤信号?")
+
+// WVF振荡器参数
+on = input(defval=14, title="振荡器周期", type=input.integer, minval=1)
+oup = input(defval=85.0, title="振荡器信号上限", type=input.float)
+odn = input(defval=20.0, title="振荡器信号下限", type=input.float)
+oscSmooth =input(defval=5, title="振荡器均值", type=input.integer)
+
+
+// Wave A
+fastMA1 = ema(close, 8)
+slowMA1 = ema(close, 34)
+macd1 =  fastMA1 - slowMA1
+signal1 =  ema(macd1, 34)
+hist1 =  macd1 - signal1
+
+fastMA2 = ema(close, 8)
+slowMA2 = ema(close, 55)
+macd2 = fastMA2 - slowMA2
+signal2 = ema(macd2, 55)
+hist2 = macd2 - signal2
+
+// Wave B
+fastMA3 = ema(close, 8)
+slowMA3 = ema(close, 89)
+macd3 = fastMA3 - slowMA3
+signal3 = ema(macd3, 89)
+hist3 = macd3 - signal3
+
+fastMA4 = ema(close, 8)
+slowMA4 = ema(close, 144)
+macd4 = fastMA4 - slowMA4
+signal4 = ema(macd4, 144)
+hist4 = macd4 - signal4
+
+// Wave C
+fastMA5 = ema(close, 8)
+slowMA5 = ema(close, 233)
+macd5 = fastMA5 - slowMA5
+signal5 = ema(macd5, 233)
+hist5 = macd5 - signal5
+
+fastMA6 = ema(close, 8)
+slowMA6 = ema(close, 377)
+macd6 = fastMA6 - slowMA6
+// signal6 = usewc ? ema(macd6, 377) : na
+// hist6 = usewc ? macd6 - signal6 : na
+
+// 绘制信号
+// PLOTs
+// plot(usewb?hist4:macd6, color=usewb?#FF00FF:#FF0000, style=plot.style_line, title="趋势线1", linewidth=1)
+// plot(usewb?hist3:hist5, color=usewb?#0000FF:#FF8C00, style=plot.style_line, title="趋势线2", linewidth=1)
+
+// plot(usewa?hist2:na, color=#008000, style=plot.style_histogram, title="Wave A1", linewidth=3)
+// plot(usewa?hist1:na, color=#DAA520, style=plot.style_histogram, title="Wave A2", linewidth=3)
+
+// 短期趋势，0 不可交易；1/2 可交易（1 表示两个趋势条件中一个满足，一个不满足）
+shortTrend = (hist1 - nz(hist1[1]) >=0 and hist2-nz(hist2[1])>=0) ? 2 : (hist1 - nz(hist1[1]) >=limit or hist2-nz(hist2[1])>=limit) ? 1 : 0
+// 长期趋势，0 不可交易，1/2 可交易（1 表示两个趋势条件中一个满足，一个不满足）
+longTrend = usewb ? ((hist4 - nz(hist4[1]) >=0 and hist3 - nz(hist3[1]) >=0) ? 2 : ( hist4-nz(hist4[1]) >=0 or hist3-nz(hist3[1]) >=0) ? 1 : 0) : (( hist5 - nz(hist5[1]) >=0 and macd6 - nz(macd6[1]) >=0 ) ? 2: (hist5-nz(hist5[1]) >=0 or macd6-nz(macd6[1]) >=0) ? 1 : 0)
+// longTrend = usewb ? ((hist4 >=0 and hist3 >=0) ? 2 : (hist4  >=0 or hist3 >=0) ? 1 : 0) : ((hist5 >=0 and macd6 >=0) ? 2: (hist5  >=0 or macd6 >=0) ? 1 : 0)
+trendSignal = shortTrend!=0 or longTrend!=0 ? 1 : 0
+// trendSignal = shortTrend==0 or longTrend==0 ? 0 : 1
+// 绘制显示状态
+// plot(0, color=shortTrend==0?color.gray:shortTrend==1?color.orange:color.red, style=plot.style_circles,linewidth=3)
+// plot(0.1, color=longTrend==0?color.gray:longTrend==1?color.orange:color.red, style=plot.style_circles,linewidth=3)
+
+// 0线上显示短期的趋势，这里不采用正负值判断，看大部分交易条件，短期趋势更加重要，灰色点不可交易
+// colora1 = shortTrend==2? color.red : shortTrend==1 ? color.orange : color.gray // (hist1 - nz(hist1[1]) >=0 and hist2-nz(hist2[1])>=0) ? color.red : (hist1 - nz(hist1[1]) >=0 or hist2-nz(hist2[1])>=0) ? color.orange : color.gray
+// plot(0.0, color=colora1, style=plot.style_circles, title="上涨趋势", linewidth=3)
+
+// 背景色使用选择的中期和长期趋势，大于0可交易；部分大于0也可以交易；小于0 灰色 最好不交易
+// bcolor = longTrend == 2 ? na : longTrend == 1 ? color.orange : color.gray
+bcolor = trendSignal == 1 ? na : color.gray
+bgcolor(bcolor, 80)
+
+// Squeeze 计算
+// Calculate BB
+source = useHAC ? ohlc4 : close
+basis = useEMA ? ema(source, length) : sma(source, length)
+dev = multBB * stdev(source, length)
+upperBB = basis + dev
+lowerBB = basis - dev
+
+// Calculate KC
+ma = useEMA ? ema(source, length) : sma(source, length)
+range = useTrueRange ? tr : (high - low)
+rangema = useEMA ? ema(range, length) : sma(range, length)
+upperKC = ma + rangema * multKC
+lowerKC = ma - rangema * multKC
+
+sqzOn  = (lowerBB > lowerKC) and (upperBB < upperKC)
+sqzOff = (lowerBB < lowerKC) and (upperBB > upperKC)
+noSqz  = (sqzOn == false) and (sqzOff == false)
+
+//val = linreg(source  -  avg(avg(highest(high, length), lowest(low, length)), ema(close,length)), length,0)
+momentum = (close - close[mtmlen])/close[mtmlen]
+val=sma(momentum, mtmSmooth)
+
+// bcolor = iff( val > 0, iff( val > nz(val[1]), color.lime, color.green), iff( val < nz(val[1]), color.red, color.maroon))
+// scolor = noSqz ? color.blue : sqzOn ? color.black : color.gray 
+
+// mtmTrend = val >= 0 ? 1 : val < 0 ? -1 : 0
+trend = ( (val >= 0 and val>=nz(val[1])) or ( shortTrend!=0 and hist1>-1.0 ) ) ? 1 : 0
+
+// bcolor = iff( val > 0, iff( val > nz(val[1]), color.green, color.blue), iff( val < nz(val[1]), color.red, color.orange))
+// scolor = noSqz ? color.blue : sqzOn ? color.red : color.green 
+// plot(val, color=bcolor, style=plot.style_histogram, linewidth=3)
+// plot(0, color=scolor, style=plot.style_circles, linewidth=3)
+
+//EMA Body
+// body = abs(close - open)
+// emabody = ema(body, 30) / 3
+
+//Signals
+// bar = close >= open ? 1 : close < open ? -1 : 0
+// 这里汇总Squeeze信号
+// 1. sqzOn表示信号开始，等待释放交易
+// 2. 上一日On，今天Off，则为交易状态，这里根据动量趋势确认买入或卖出
+sqzBuySignal = ( (sqzOn==false and sqzOn[1]==true) and val>=0 and val>=nz(val[1]) ) ? 2 : (sqzOn==true and shortTrend!=0) ? 1 : 0
+sqzSellSignal = (sqzOn==false and sqzOn[1]==true and not (val>=0 and val>=nz(val[1])) ) ? 2 : (sqzOn==true and shortTrend==0) ? 1 : 0
+
+// plot(0.5, color=sqzBuySignal==2?color.red:sqzBuySignal==1?color.orange:color.gray, style=plot.style_circles,linewidth=3)
+// plot(0.6, color=sqzSellSignal==0?color.gray:color.lime, style=plot.style_circles,linewidth=3)
+
+// sqzSignal = -1
+// if sqzOn==true
+//     // 准备状态
+//     sqzSignal := 0
+// else
+//     if nz(sqzSignal[1], -1)==0 and val>=0 and val>=nz(val[1])
+//         sqzSignal := 1
+//     else if nz(sqzSignal[1], -1)==1
+//         if val > nz(val[1])
+//             sqzSignal := 1
+
+// signalColor = sqzSignal==0 ? color.yellow : sqzSignal==1 ? color.red : color.gray
+// plot(0.5, color=signalColor, style=plot.style_circles, linewidth=3)
+
+// sqzBuySignal = (sqzSignal==1 and sqzSignal[1]==0) ? 1 : 0
+// sqzSellSignal = (sqzSignal==-1 and sqzSignal[1]==1) ? 1 : 0
+// plot(0.6, color=sqzBuySignal==1?color.red : sqzSellSignal==1?color.lime:color.gray, style=plot.style_circles,linewidth=3)
+
+// signalColor = signal==0 ? color.yellow : signal==1 ? color.red : color.gray
+// plot(0.5, color=signalColor, style=plot.style_circles, linewidth=3)
+
+// up = sqzSignal==1 and sqzSignal[1]==0
+// dn = sqzSignal==-1 and sqzSignal[1]==1
+// dcolor = up ? color.red : dn ? color.lime : color.gray
+// plot(0.6, color=dcolor, style=plot.style_circles, linewidth=3)
+// Squeeze 结束
+
+// WVF计算
+wvf = ((highest(close, pd)-low)/(highest(close, pd)))*100
+sDev = mult * stdev(wvf, bbl)
+midLine = sma(wvf, bbl)
+lowerBand = midLine - sDev
+upperBand = midLine + sDev
+rangeHigh = (highest(wvf, lb)) * ph
+
+//Filtered Bar Criteria
+upRange = low > low[1] and close > high[1]
+upRange_Aggr = close > close[1] and close > open[1]
+//Filtered Criteria
+filtered = ((wvf[1] >= upperBand[1] or wvf[1] >= rangeHigh[1]) and (wvf < upperBand and wvf < rangeHigh))
+filtered_Aggr = (wvf[1] >= upperBand[1] or wvf[1] >= rangeHigh[1]) and not (wvf < upperBand and wvf < rangeHigh)
+
+//Alerts Criteria
+// 仅表达WVF指标超出布林带或者最近高值范围
+wvfSignal1 = wvf >= upperBand or wvf >= rangeHigh ? 1 : 0
+// 昨日alert1，且今日没有alert1
+wvfSignal2 = (wvf[1] >= upperBand[1] or wvf[1] >= rangeHigh[1]) and (wvf < upperBand and wvf < rangeHigh) ? 1 : 0
+// 相比昨日价位走高，且 大于制定日价格（最近上升）；但是 相比中期或长期价格低；且昨日有WVF至少一个信号
+// alert3 = upRange and close > close[stLB] and (close < close[ltLB] or close < close[mtLB]) and filtered ? 1 : 0
+// 今日价位走高（也高于昨日开盘）；且高于短期几日的价格（表达最近上升）；且 中长期价格较低；昨日有至少一个WVF信号，今日也至少有一个信号
+// alert4 = upRange_Aggr and close > close[stLB] and (close < close[ltLB] or close < close[mtLB]) and filtered_Aggr ? 1 : 0
+wvfSignal = (wvfSignal1 == 1 or wvfSignal2 ==1) ? 1 : 0
+
+// WVF振荡器计算
+ohc = highest(wvf, on)
+olc = lowest(wvf, on)
+osc = 100.0*(wvf-olc)/(ohc-olc)
+// oscMA = sma(osc, oscSmooth)
+oscMA = linreg(osc, oscSmooth, 0)
+
+// 操作信号
+oscSignal1 = osc>oup ? 1 : osc<odn ? -1 : 0
+oscSignal2 = oscMA>oup ? 1 : oscMA<odn ? -1 : 0
+
+oscSignal = (oscSignal1 == 1 or oscSignal2 == 1) ? 1 : 0
+
+// osc1color = osc>oup ? color.red : osc<odn ? color.lime : color.gray
+// osc2color = oscMA>oup ? color.red : oscMA<odn ? color.lime : color.gray
+
+// buySignal = sqzBuySignal
+wvfBuySignal = (oscSignal == 1 and wvfSignal == 1)  ? 2 : (oscSignal == 1 or wvfSignal == 1) ? 1 : 0
+longCondition = ((trendSignal == 1 and wvfBuySignal != 0) and sqzBuySignal!=0) ? 2 : ((trendSignal == 1 and wvfBuySignal != 0) or sqzBuySignal!=0) ? 1 : 0
+// plot(-0.5, color=longCondition==2?color.red:longCondition==1?color.orange:color.gray,style=plot.style_circles,linewidth=3)
+
+tt = "SQZ["+tostring(sqzBuySignal)+", "+tostring(sqzSellSignal)+"], WVF osc["+tostring(oscSignal1)+", "+tostring(oscSignal2)+"], WVF Boll["+tostring(wvfSignal1)+", "+tostring(wvfSignal2)+"]"
+position = 0
+position := nz(position[1])
+if (longCondition != 0 and position==0)
+    // label.new(bar_index, 0, text = "买入", color=longCondition==2 ? color.red : color.orange, style=label.style_none, size=size.small, tooltip=tt)
+    position := 1
+    strategy.entry("买入", strategy.long)
+    // label.new(bar_index, low, yloc=yloc.belowbar, text = "买入", color=longCondition==2 ? color.red : color.orange, style=label.style_arrowup, size=size.small, tooltip=tt)
+
+if (position==1 and shortTrend==0)
+    position := 0
+    strategy.close("买入")
+    // label.new(bar_index, high, yloc=yloc.abovebar, text = "卖出", color=color.lime, style=label.style_arrowdown, size=size.small)
+
+// if (longCondition)
+//     strategy.entry("买入", strategy.long)
+
+// shortCondition = crossunder(sma(close, 14), sma(close, 28))
+// if (shortCondition)
+//     strategy.entry("卖出", strategy.short)
