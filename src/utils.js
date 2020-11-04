@@ -75,7 +75,15 @@ function readData(item, prop) {
     if (_.isFunction(prop)) {
         return prop(item);
     } else if (_.isString(prop)) {
-        return item && item[prop];
+        if (prop === "tr") {
+            return tr(item);
+        } else if (prop === "ohlc") {
+            return ohlc(item);
+        } else if (prop === "hl") {
+            return hl(item);
+        } else {
+            return item && item[prop];
+        }
     }
     return item;
 }
