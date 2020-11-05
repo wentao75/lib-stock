@@ -14,6 +14,51 @@
 import _ from "lodash";
 import utils from "../utils";
 
+const HADATA = Symbol("HADATA");
+
+// 这里需要预先计算好HA的4个价格，并且进行记录，主要是open价格和前一日的HA开盘及收盘相关
+function calculateHA(tradeData) {
+    if (_.isNil(tradeData)) return;
+    if (_.isNil(tradeData[HADATA])) {
+        // 计算
+        let hadata = [];
+        for (let i = 0; i < tradeData.length; i++) {
+            if (i === 0) {
+                let ho = tradeData[i].open;
+                hadata[i] = {
+                    open: tradeData[i].open,
+                    high: tradeData[i].high,
+                    low: tradeData[i].low,
+                    close: tradeData[i].close,
+                };
+            } else {
+                hadata[i] = {
+                    open: (hadata[i - 1].open + hadata[i - 1].close) / 2,
+                    high: tradeData[i].high,
+                    low: tradeData[i].low,
+                    close:
+                        (tradeData[i].open +
+                            tradeData[i].high +
+                            tradeData[i].low +
+                            tradeData[i].close) /
+                        4,
+                };
+                hadata[i].high = Math.max(
+                    hadata[i].high,
+                    hadata[i].open,
+                    hadata[i].close
+                );
+                hadata[i].low = Math.min(
+                    hadata[i].low,
+                    hadata[i].open,
+                    hadata[i].close
+                );
+            }
+        }
+        tradeData[HADATA] = hadata;
+    }
+}
+
 /**
  * 计算每日的趋势情况，返回值设置为涨或跌，用1和0表示
  * @param {*} tradeData 所有数据
@@ -21,6 +66,7 @@ import utils from "../utils";
  */
 function ttmtrend(tradeData, { n = 6, type = "TTM" } = {}) {
     utils.checkTradeData(tradeData);
+    calculateHA(tradeData);
 
     let trends = [];
     // TTM暂未实现，只能给出HA结果！
@@ -62,14 +108,17 @@ function ttmtrend(tradeData, { n = 6, type = "TTM" } = {}) {
             } else if (type === "HA") {
                 // HA pattern
                 if (i > 0) {
-                    let o =
-                        (tradeData[i - 1].open + tradeData[i - 1].close) / 2;
-                    let c =
-                        (tradeData[i].open +
-                            tradeData[i].high +
-                            tradeData[i].low +
-                            tradeData[i].close) /
-                        4;
+                    // let o =
+                    //     (tradeData[i - 1].open + tradeData[i - 1].close) / 2;
+                    // let c =
+                    //     (tradeData[i].open +
+                    //         tradeData[i].high +
+                    //         tradeData[i].low +
+                    //         tradeData[i].close) /
+                    //     4;
+                    let hadata = tradeData[HADATA];
+                    let o = hadata[i].open;
+                    let c = hadata[i].close;
                     //up = c >= o;
                     // 1/0表示正常升降，3/2表示修改升降
                     trend = c >= o;
