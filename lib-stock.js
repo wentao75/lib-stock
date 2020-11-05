@@ -306,12 +306,19 @@
             let count = 0;
 
             while (j >= 0 && j < array.length && count < n) {
-              sum += (readData(array[j], prop) - ma) ** 2;
+              let tmp = readData(array[j], prop);
+              sum += (tmp - ma) ** 2; // console.log(
+              //     `j=${j} - ${array[j].trade_date}, ohlc=${tmp}, sum=${sum}`
+              // );
+
               count++;
               j -= step;
-            }
+            } // d = toFixed(Math.sqrt(sum / (n - 1)), digits);
 
-            d = toFixed(Math.sqrt(sum / (n - 1)), digits);
+
+            d = toFixed(Math.sqrt(sum / n), digits); // console.log(
+            //     `stdev: ${i}, ${array[i].trade_date}, ma=${ma}, stdev=${d}`
+            // );
           }
 
           ret[index] = d;
@@ -2535,7 +2542,7 @@ ${rules_desc}
       let macd6 = usec ? subtract(fastMA6, slowMA6, digits) : null;
       let signal6 = usec ? utils.ma(macd6, mc, null, "ema", digits) : null;
       let hist6 = usec ? subtract(macd6, signal6, digits) : null;
-      return [hist1, hist2, hist3, hist4, hist5, hist6, macd6];
+      return [hist1, hist2, hist3, hist4, hist5, macd6, hist6];
     }
 
     var TTMWave = {
@@ -2613,13 +2620,13 @@ ${rules_desc}
       tm = 21,
       tl = 34
     } = {}) {
-      utils.checkTradeData(tradeData);
-
-      if (source === "ohlc") {
-        source = utils.ohlc;
-      } else {
-        source = "close";
-      } // let source = (options && options.source) || "close";
+      utils.checkTradeData(tradeData); // 2020.11.4 发现了类型值转换错误，造成后续计算没有使用ohlc
+      // if (source === "ohlc") {
+      //     source = utils.ohlc;
+      // } else {
+      //     source = "close";
+      // }
+      // let source = (options && options.source) || "close";
       // let digits = (options && options.digits) || 3;
       // let ma = (options && options.ma) || "ema";
       // let n = (options && options.n) || 20;
@@ -2636,7 +2643,7 @@ ${rules_desc}
       // let tn = (options && options.tn) || 5;
       // let tm = (options && options.tm) || 21;
       // let tl = (options && options.tl) || 34;
-
+      // console.log(`squeeze param: ${source}, ${ma}`);
 
       let kcData = KC.calculate(tradeData, {
         n,
@@ -2702,7 +2709,10 @@ ${rules_desc}
               nextState = REST;
             }
           }
-        }
+        } // console.log(
+        //     `${i}-${tradeData[i].trade_date}, ready=${ready}, cState=${currentState}, nState=${nextState}, ${bollData[1][i]}, ${kcData[1][i]}}`
+        // );
+
 
         currentState = nextState;
         return nextState;

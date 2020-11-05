@@ -75,7 +75,15 @@ function readData(item, prop) {
     if (_.isFunction(prop)) {
         return prop(item);
     } else if (_.isString(prop)) {
-        return item && item[prop];
+        if (prop === "tr") {
+            return tr(item);
+        } else if (prop === "ohlc") {
+            return ohlc(item);
+        } else if (prop === "hl") {
+            return hl(item);
+        } else {
+            return item && item[prop];
+        }
     }
     return item;
 }
@@ -316,11 +324,19 @@ function stdev(array, n, prop, digits = 3) {
                 let j = i;
                 let count = 0;
                 while (j >= 0 && j < array.length && count < n) {
-                    sum += (readData(array[j], prop) - ma) ** 2;
+                    let tmp = readData(array[j], prop);
+                    sum += (tmp - ma) ** 2;
+                    // console.log(
+                    //     `j=${j} - ${array[j].trade_date}, ohlc=${tmp}, sum=${sum}`
+                    // );
                     count++;
                     j -= step;
                 }
-                d = toFixed(Math.sqrt(sum / (n - 1)), digits);
+                // d = toFixed(Math.sqrt(sum / (n - 1)), digits);
+                d = toFixed(Math.sqrt(sum / n), digits);
+                // console.log(
+                //     `stdev: ${i}, ${array[i].trade_date}, ma=${ma}, stdev=${d}`
+                // );
             }
 
             ret[index] = d;
