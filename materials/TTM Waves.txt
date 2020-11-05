@@ -1,0 +1,87 @@
+// 2020.10.24 Wen Tao
+// Wave A&B&C 算法
+
+//@version=4
+study(title="TTM Wave A & B & C", shorttitle="TTMWave", precision = 2)
+
+// usewa = input(true, title = "Wave A", type=input.bool)
+
+// usewb = input(false, title = "Wave B", type=input.bool)
+// usewc = input(false, title = "Wave C", type=input.bool)
+
+usewb = input(true, title="趋势Wave B", type=input.bool)
+usewc = input(true, title="趋势Wave C", type=input.bool)
+
+// WAVE CALC
+// Wave A
+fastMA1 = ema(close, 8)
+slowMA1 = ema(close, 34)
+macd1 =  fastMA1 - slowMA1
+signal1 =  ema(macd1, 34)
+hist1 =  macd1 - signal1
+h1Color = hist1-nz(hist1[1])>=0 ? color.red : color.lime
+
+fastMA2 = ema(close, 8)
+slowMA2 = ema(close, 55)
+macd2 = fastMA2 - slowMA2
+signal2 = ema(macd2, 55)
+hist2 = macd2 - signal2
+h2Color = hist2-nz(hist2[1])>=0 ? color.red : color.lime
+
+// Wave B
+fastMA3 = ema(close, 8)
+slowMA3 = ema(close, 89)
+macd3 = fastMA3 - slowMA3
+signal3 = ema(macd3, 89)
+hist3 = macd3 - signal3
+h3Color = hist3-nz(hist3[1])>=0 ? color.red : color.lime
+
+fastMA4 = ema(close, 8)
+slowMA4 = ema(close, 144)
+macd4 = fastMA4 - slowMA4
+signal4 = ema(macd4, 144)
+hist4 = macd4 - signal4
+h4Color = hist4-nz(hist4[1])>=0 ? color.red : color.lime
+
+// Wave C
+fastMA5 = ema(close, 8)
+slowMA5 = ema(close, 233)
+macd5 = fastMA5 - slowMA5
+signal5 = ema(macd5, 233)
+hist5 = macd5 - signal5
+h5Color = hist5-nz(hist5[1])>=0 ? color.red : color.lime
+
+fastMA6 = ema(close, 8)
+slowMA6 = ema(close, 377)
+macd6 = fastMA6 - slowMA6
+// signal6 = usewc ? ema(macd6, 377) : na
+// hist6 = usewc ? macd6 - signal6 : na
+h6Color = macd6-nz(macd6[1])>=0 ? color.red : color.lime
+
+// PLOTs
+//plot(hist6, color=#FF0000, style=plot.style_histogram, title="Wave C1", linewidth=3)
+// tspc = usewc?0:100
+plot(usewc?macd6:na, color=#FF0000, style=plot.style_line, title="长期趋势1", linewidth=1)
+plot(usewc?macd6:na, color=h6Color, style=plot.style_circles, title="中期涨跌趋势1", linewidth=2)
+plot(usewc?hist5:na, color=#FF8C00, style=plot.style_line, title="长期趋势2", linewidth=1)
+plot(usewc?hist5:na, color=h5Color, style=plot.style_circles, title="中期涨跌趋势2", linewidth=2)
+
+// tspb = usewb?0:100
+plot(usewb?hist4:na, color=#FF00FF, style=plot.style_line, title="中期趋势1", linewidth=1)
+plot(usewb?hist4:na, color=h4Color, style=plot.style_circles, title="中期涨跌趋势1", linewidth=2)
+
+plot(usewb?hist3:na, color=#0000FF, style=plot.style_line, title="中期趋势2", linewidth=1)
+plot(usewb?hist3:na, color=h3Color, style=plot.style_circles, title="中期涨跌趋势2", linewidth=2)
+
+// tspa = usewa?0:100
+plot(hist2, color=#008000, style=plot.style_histogram, title="Wave A1", linewidth=3)
+plot(hist1, color=#DAA520, style=plot.style_histogram, title="Wave A2", linewidth=3)
+
+colora1 = (hist1 - nz(hist1[1]) >=0 and hist2-nz(hist2[1])>=0) ? color.red : (hist1 - nz(hist1[1]) >=0 or hist2-nz(hist2[1])>=0) ? color.orange : color.gray
+plot(0.0, color=colora1, style=plot.style_circles, title="上涨趋势", linewidth=3)
+
+ht = (hist3 >=0 ? 1 : 0) + (hist4 >=0 ? 1 : 0) + (hist5 >=0 ? 1 : 0) + (macd6 >=0 ? 1 : 0)
+bcolor = (ht==4 or ht==3) ? na : ht==2 ? color.yellow : ht==1 ? color.orange : color.gray
+// bcolor = usewb ? ((hist4 >=0 and hist3 >=0) ? na: (hist4  >=0 or hist3 >=0) ? color.orange : color.gray) : ((hist5 >=0 and macd6 >=0) ? na: (hist5  >=0 or macd6 >=0) ? color.orange : color.gray)
+bgcolor(bcolor, 60)
+hline(0, color=color.gray, title = "零线", linewidth = 1, linestyle = hline.style_solid)
