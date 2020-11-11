@@ -19,7 +19,10 @@ const HADATA = Symbol("HADATA");
 // 这里需要预先计算好HA的4个价格，并且进行记录，主要是open价格和前一日的HA开盘及收盘相关
 function calculateHA(tradeData) {
     if (_.isNil(tradeData)) return;
-    if (_.isNil(tradeData[HADATA])) {
+    if (
+        _.isNil(tradeData[HADATA]) ||
+        (tradeData && tradeData.length != tradeData[HADATA].length)
+    ) {
         // 计算
         let hadata = [];
         for (let i = 0; i < tradeData.length; i++) {
@@ -117,6 +120,30 @@ function ttmtrend(tradeData, { n = 6, type = "TTM" } = {}) {
                     //         tradeData[i].close) /
                     //     4;
                     let hadata = tradeData[HADATA];
+                    // if (!(hadata && hadata[i]) && i > 0) {
+                    //     hadata[i] = {
+                    //         open:
+                    //             (hadata[i - 1].open + hadata[i - 1].close) / 2,
+                    //         high: tradeData[i].high,
+                    //         low: tradeData[i].low,
+                    //         close:
+                    //             (tradeData[i].open +
+                    //                 tradeData[i].high +
+                    //                 tradeData[i].low +
+                    //                 tradeData[i].close) /
+                    //             4,
+                    //     };
+                    //     hadata[i].high = Math.max(
+                    //         hadata[i].high,
+                    //         hadata[i].open,
+                    //         hadata[i].close
+                    //     );
+                    //     hadata[i].low = Math.min(
+                    //         hadata[i].low,
+                    //         hadata[i].open,
+                    //         hadata[i].close
+                    //     );
+                    // }
                     let o = hadata[i].open;
                     let c = hadata[i].close;
                     //up = c >= o;

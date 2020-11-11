@@ -4434,7 +4434,7 @@ const HADATA = Symbol("HADATA"); // 这里需要预先计算好HA的4个价格�
 function calculateHA(tradeData) {
   if (_$1.isNil(tradeData)) return;
 
-  if (_$1.isNil(tradeData[HADATA])) {
+  if (_$1.isNil(tradeData[HADATA]) || tradeData && tradeData.length != tradeData[HADATA].length) {
     // 计算
     let hadata = [];
 
@@ -4522,7 +4522,31 @@ function ttmtrend(tradeData, {
           //         tradeData[i].low +
           //         tradeData[i].close) /
           //     4;
-          let hadata = tradeData[HADATA];
+          let hadata = tradeData[HADATA]; // if (!(hadata && hadata[i]) && i > 0) {
+          //     hadata[i] = {
+          //         open:
+          //             (hadata[i - 1].open + hadata[i - 1].close) / 2,
+          //         high: tradeData[i].high,
+          //         low: tradeData[i].low,
+          //         close:
+          //             (tradeData[i].open +
+          //                 tradeData[i].high +
+          //                 tradeData[i].low +
+          //                 tradeData[i].close) /
+          //             4,
+          //     };
+          //     hadata[i].high = Math.max(
+          //         hadata[i].high,
+          //         hadata[i].open,
+          //         hadata[i].close
+          //     );
+          //     hadata[i].low = Math.min(
+          //         hadata[i].low,
+          //         hadata[i].open,
+          //         hadata[i].close
+          //     );
+          // }
+
           let o = hadata[i].open;
           let c = hadata[i].close; //up = c >= o;
           // 1/0表示正常升降，3/2表示修改升降
