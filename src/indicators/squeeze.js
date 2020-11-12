@@ -31,6 +31,7 @@ function squeeze(
     tradeData,
     {
         source = "close",
+        mtsource = "close",
         digits = 3,
         ma = "ema",
         n = 20,
@@ -91,7 +92,7 @@ function squeeze(
     let mtmData = MTM.calculate(tradeData, {
         n: mn,
         m: mm,
-        source,
+        source: mtsource,
         digits,
     });
 

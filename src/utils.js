@@ -220,12 +220,17 @@ function ema(array, n, prop, digits = 3) {
         let ret = [];
         let tmp = 0;
         while (i >= 0 && i < array.length) {
+            let val = readData(array[i], prop);
             if (index === 0) {
-                tmp = readData(array[i], prop);
+                // tmp = readData(array[i], prop);
+                tmp = val;
             } else {
-                tmp = (2 * readData(array[i], prop) + (n - 1) * tmp) / (n + 1);
+                tmp = (2 * val + (n - 1) * tmp) / (n + 1);
             }
             ret[index] = toFixed(tmp, digits);
+            // console.log(
+            //     `debug ema[${n}][${array[i].trade_date}]: ${i} ${tmp}, ${val}`
+            // );
             index++;
             i += step;
         }
@@ -351,6 +356,64 @@ function formatFxstr(num) {
     return num.toLocaleString("zh-CN"); //, { style: "currency", currency: "CNY" });
 }
 
+/**
+ * 读取给定数组指定位置的数据，如果数据不存在则返回默认值
+ * @param {Arry} array 数据数组
+ * @param {Integer}} pos 读取位置索引
+ * @param {*} defaultVal 默认值
+ */
+function nz(array, pos, defaultVal = 0.0) {
+    if (_.isNil(array) && !_.isArray(array)) {
+        return defaultVal;
+    }
+
+    if (pos < 0 || pos > array.length - 1) {
+        return defaultVal;
+    }
+
+    return array[pos];
+}
+
+/**
+ * 线性回归，使用最小二乘法计算，公式为：linreg = intercept+slope*(len-1)
+ * 计算返回值为 [slope, average, intercept]
+ * 计算当中的len以当前位置pos为基准向前取值 pos-index
+ *
+ * @param {Array} array 数据数组
+ * @param {Integer}} pos 数据计算的开始位置
+ * @param {*} prop 数据属性（读取使用）
+ * @param {Integer} len 数据拟合使用的周期
+ */
+function linreg(array, pos, prop, len) {
+    if (
+        _.isNil(array) ||
+        !_.isArray(array) ||
+        len <= 1 ||
+        pos < 0 ||
+        pos >= array.length ||
+        pos - len + 1 < 0
+    ) {
+        return [];
+    }
+
+    let sumX = 0.0;
+    let sumY = 0.0;
+    let sumXSqr = 0.0;
+    let sumXY = 0.0;
+    for (let i = 0; i < len; i++) {
+        let val = readData(array[pos - i], prop);
+        let per = i + 1.0;
+        sumX += per;
+        sumY += val;
+        sumXSqr += per * per;
+        sumXY += val * per;
+    }
+    let slope = (len * sumXY - sumX * sumY) / (len * sumXSqr - sumX * sumX);
+    let avg = sumY / len;
+    let intercept = avg - (slope * sumX) / len + slope;
+    return [slope, avg, intercept];
+}
+
 export default {
     formatFxstr,
     average,
@@ -367,4 +430,6 @@ export default {
     boll,
     highest,
     lowest,
+    nz,
+    linreg,
 };

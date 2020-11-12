@@ -20,24 +20,26 @@ function mtm(tradeData, options) {
         options &&
         options.n > 1
     ) {
-        let source =
-            options && options.source === "ohlc" ? utils.ohlc : "close";
+        let source = options && options.source === "ohlc" ? "ohlc" : "close";
         let digits = options.digits || 3;
-        let ma;
-        if (options && options.m && options.m > 1) {
-            ma = utils.ma(tradeData, options.m, source, "ma", digits);
-        } else {
-            ma = utils.ma(tradeData, 1, source, "ma", digits);
-        }
+        // let sd = utils.readData
+        // if (options && options.m && options.m > 1) {
+        //     ma = utils.ma(tradeData, options.m, source, "ma", digits);
+        // } else {
+        //     ma = utils.ma(tradeData, 1, source, "ma", digits);
+        // }
 
         let momentum = tradeData.map((item, i, all) => {
             if (i > options.n) {
-                return utils.toFixed(
-                    ma[i] - ma[i - options.n],
-                    //utils.readData(item, source) - ma[i - options.n],
-                    //utils.readData(all[i - options.n], source),
-                    digits
-                );
+                let c = utils.readData(item, source);
+                let cl = utils.readData(tradeData[i - options.n], source);
+                return utils.toFixed((100.0 * (c - cl)) / cl);
+                // return utils.toFixed(
+                //     (100.0 * (ma[i] - ma[i - options.n])) / ma[i - options.n],
+                //     //utils.readData(item, source) - ma[i - options.n],
+                //     //utils.readData(all[i - options.n], source),
+                //     digits
+                // );
             } else {
                 return 0;
             }
