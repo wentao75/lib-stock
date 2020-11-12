@@ -404,21 +404,21 @@ function everyday(
     //         mtmVal[len - 2]
     //     }`
     // );
-    console.log(
-        `数据检查：[${len}] ${
-            tradeData[len - 1] && tradeData[len - 1].trade_date
-        }, ${tradeData[len - 1] && tradeData[len - 1].close}, ${
-            tradeData[len - 1 - 89] && tradeData[len - 1 - 89].trade_date
-        }, ${tradeData[len - 1 - 89] && tradeData[len - 1 - 89].close}, ${
-            tradeData[len - 1 - 233] && tradeData[len - 1 - 233].trade_date
-        }, ${tradeData[len - 1 - 233] && tradeData[len - 1 - 233].close}, f=${
-            fastMA[len - 1]
-        }, sm3=${slowMA3[len - 1]}, m3=${macd3[len - 1]}, s3=${
-            signal3[len - 1]
-        }, h3=${hist3[len - 1]}, sm5=${slowMA5[len - 1]}, m5=${
-            macd5[len - 1]
-        }, s5=${signal5[len - 1]}, h5=${hist5[len - 1]}`
-    );
+    // console.log(
+    //     `数据检查：[${len}] ${
+    //         tradeData[len - 1] && tradeData[len - 1].trade_date
+    //     }, ${tradeData[len - 1] && tradeData[len - 1].close}, ${
+    //         tradeData[len - 1 - 89] && tradeData[len - 1 - 89].trade_date
+    //     }, ${tradeData[len - 1 - 89] && tradeData[len - 1 - 89].close}, ${
+    //         tradeData[len - 1 - 233] && tradeData[len - 1 - 233].trade_date
+    //     }, ${tradeData[len - 1 - 233] && tradeData[len - 1 - 233].close}, f=${
+    //         fastMA[len - 1]
+    //     }, sm3=${slowMA3[len - 1]}, m3=${macd3[len - 1]}, s3=${
+    //         signal3[len - 1]
+    //     }, h3=${hist3[len - 1]}, sm5=${slowMA5[len - 1]}, m5=${
+    //         macd5[len - 1]
+    //     }, s5=${signal5[len - 1]}, h5=${hist5[len - 1]}`
+    // );
 
     return [
         longCondition, // 0

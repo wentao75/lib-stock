@@ -21,15 +21,15 @@ function check(index, stockData, options, tsCode) {
         let longCond = sdata[0];
         let shortCond = sdata[1];
 
-        console.log(`
-${tsCode}: [${tradeDate}] 买入条件=${longCond[index]}，卖出条件=${shortCond[index]}
-    TTM: trendSignal=${sdata[2][index]}, ttmTrend=${sdata[3][index]},
-    Signal: sqzBuy=${sdata[4][index]}, sqzSell=${sdata[5][index]}, wvfBuy=${sdata[6][index]}, osc=${sdata[7][index]}
+        //         console.log(`
+        // ${tsCode}: [${tradeDate}] 买入条件=${longCond[index]}，卖出条件=${shortCond[index]}
+        //     TTM: trendSignal=${sdata[2][index]}, ttmTrend=${sdata[3][index]},
+        //     Signal: sqzBuy=${sdata[4][index]}, sqzSell=${sdata[5][index]}, wvfBuy=${sdata[6][index]}, osc=${sdata[7][index]}
 
-    Wave: hist1=${sdata[21][index]} hist2=${sdata[22][index]} hist3=${sdata[23][index]} hist4=${sdata[24][index]} hist5=${sdata[25][index]} hist6=${sdata[26][index]}
-    SQZ: state=${sdata[31][index]} mtm=${sdata[32][index]} mtmVal=${sdata[33][index]}
-    WVF: wvf=${sdata[41][index]} osc=${sdata[45][index]}
-        `);
+        //     Wave: hist1=${sdata[21][index]} hist2=${sdata[22][index]} hist3=${sdata[23][index]} hist4=${sdata[24][index]} hist5=${sdata[25][index]} hist6=${sdata[26][index]}
+        //     SQZ: state=${sdata[31][index]} mtm=${sdata[32][index]} mtmVal=${sdata[33][index]}
+        //     WVF: wvf=${sdata[41][index]} osc=${sdata[45][index]}
+        //         `);
 
         if (longCond[index] != 0) {
             // 有信号

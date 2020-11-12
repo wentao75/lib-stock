@@ -4727,8 +4727,22 @@ WVF交易值检查 [周期: ${options.vixfix.lbn}, 最大值倍数: ${options.vi
       //         mtmVal[len - 2]
       //     }`
       // );
+      // console.log(
+      //     `数据检查：[${len}] ${
+      //         tradeData[len - 1] && tradeData[len - 1].trade_date
+      //     }, ${tradeData[len - 1] && tradeData[len - 1].close}, ${
+      //         tradeData[len - 1 - 89] && tradeData[len - 1 - 89].trade_date
+      //     }, ${tradeData[len - 1 - 89] && tradeData[len - 1 - 89].close}, ${
+      //         tradeData[len - 1 - 233] && tradeData[len - 1 - 233].trade_date
+      //     }, ${tradeData[len - 1 - 233] && tradeData[len - 1 - 233].close}, f=${
+      //         fastMA[len - 1]
+      //     }, sm3=${slowMA3[len - 1]}, m3=${macd3[len - 1]}, s3=${
+      //         signal3[len - 1]
+      //     }, h3=${hist3[len - 1]}, sm5=${slowMA5[len - 1]}, m5=${
+      //         macd5[len - 1]
+      //     }, s5=${signal5[len - 1]}, h5=${hist5[len - 1]}`
+      // );
 
-      console.log(`数据检查：[${len}] ${tradeData[len - 1] && tradeData[len - 1].trade_date}, ${tradeData[len - 1] && tradeData[len - 1].close}, ${tradeData[len - 1 - 89] && tradeData[len - 1 - 89].trade_date}, ${tradeData[len - 1 - 89] && tradeData[len - 1 - 89].close}, ${tradeData[len - 1 - 233] && tradeData[len - 1 - 233].trade_date}, ${tradeData[len - 1 - 233] && tradeData[len - 1 - 233].close}, f=${fastMA[len - 1]}, sm3=${slowMA3[len - 1]}, m3=${macd3[len - 1]}, s3=${signal3[len - 1]}, h3=${hist3[len - 1]}, sm5=${slowMA5[len - 1]}, m5=${macd5[len - 1]}, s5=${signal5[len - 1]}, h5=${hist5[len - 1]}`);
       return [longCondition, // 0
       shortCondition, // 1
       trendSignal, // 2
@@ -4801,16 +4815,14 @@ WVF交易值检查 [周期: ${options.vixfix.lbn}, 最大值倍数: ${options.vi
       if (stockData && ___default['default'].isArray(stockData) && index < stockData.length && index >= 0) {
         let tradeDate = stockData[index].trade_date;
         let longCond = sdata[0];
-        let shortCond = sdata[1];
-        console.log(`
-${tsCode}: [${tradeDate}] 买入条件=${longCond[index]}，卖出条件=${shortCond[index]}
-    TTM: trendSignal=${sdata[2][index]}, ttmTrend=${sdata[3][index]},
-    Signal: sqzBuy=${sdata[4][index]}, sqzSell=${sdata[5][index]}, wvfBuy=${sdata[6][index]}, osc=${sdata[7][index]}
-
-    Wave: hist1=${sdata[21][index]} hist2=${sdata[22][index]} hist3=${sdata[23][index]} hist4=${sdata[24][index]} hist5=${sdata[25][index]} hist6=${sdata[26][index]}
-    SQZ: state=${sdata[31][index]} mtm=${sdata[32][index]} mtmVal=${sdata[33][index]}
-    WVF: wvf=${sdata[41][index]} osc=${sdata[45][index]}
-        `);
+        let shortCond = sdata[1]; //         console.log(`
+        // ${tsCode}: [${tradeDate}] 买入条件=${longCond[index]}，卖出条件=${shortCond[index]}
+        //     TTM: trendSignal=${sdata[2][index]}, ttmTrend=${sdata[3][index]},
+        //     Signal: sqzBuy=${sdata[4][index]}, sqzSell=${sdata[5][index]}, wvfBuy=${sdata[6][index]}, osc=${sdata[7][index]}
+        //     Wave: hist1=${sdata[21][index]} hist2=${sdata[22][index]} hist3=${sdata[23][index]} hist4=${sdata[24][index]} hist5=${sdata[25][index]} hist6=${sdata[26][index]}
+        //     SQZ: state=${sdata[31][index]} mtm=${sdata[32][index]} mtmVal=${sdata[33][index]}
+        //     WVF: wvf=${sdata[41][index]} osc=${sdata[45][index]}
+        //         `);
 
         if (longCond[index] != 0) {
           // 有信号
