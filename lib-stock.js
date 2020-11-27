@@ -1482,6 +1482,7 @@ ${rules_desc}
     function showOptionsInfo$1(options) {
       let rules = options && options.match && options.match.rules;
       console.log(`测试数据周期: ${options.startDate}`);
+      console.log(`${options && options.includeSell ? "包含卖出" : "不包含卖出"}`);
 
       for (let rule of rules) {
         console.log(`${rule.showOptions(options)}`);
@@ -1532,6 +1533,10 @@ ${rules_desc}
               if (!foundSignals) {
                 allSignals[rule.label] = {};
                 foundSignals = allSignals[rule.label];
+              }
+
+              if (options && !options.includeSell && matched.tradeType === "sell") {
+                continue;
               }
 
               log$1(`**  [${stockItem.ts_code}]${stockItem.name} 信号:${matched.tradeType} ${matched.memo}`);
