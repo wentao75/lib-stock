@@ -4976,6 +4976,225 @@ WVF交易值检查 [周期: ${options.vixfix.lbn}, 最大值倍数: ${options.vi
     };
 
     /**
+     * 推进器交易，波段
+     *
+     */
+    const debug$h = debugpkg__default['default']("rules:trend");
+    const RULE_NAME$9 = "trend";
+    const TREND_DATA = Symbol("TREND_DATA");
+
+    function calculateTrend(stockData, {
+      n = 8,
+      m = 21,
+      l = 50,
+      // earn1 = 0.04,
+      // earn2 = 0.08,
+      // loss = 0.04,
+      digits = 3,
+      atrlen = 20
+    } = {}) {
+      if (___default['default'].isNil(stockData)) return;
+      let type = "ema";
+      let source = "close";
+      debug$h(`trend options: n=${n} m=${m} l=${l}`);
+
+      if (___default['default'].isNil(stockData[TREND_DATA])) {
+        let ma1 = MA.calculate(stockData, {
+          n,
+          source,
+          type,
+          digits
+        });
+        debug$h(`%o`, ma1);
+        let ma2 = MA.calculate(stockData, {
+          n: m,
+          source,
+          type,
+          digits
+        });
+        debug$h(`%o`, ma2);
+        let ma3 = MA.calculate(stockData, {
+          n: l,
+          source,
+          type,
+          digits
+        });
+        let atr = ATR.calculate(stockData, {
+          n: atrlen,
+          type
+        });
+        let atrdev = utils.stdev(stockData, atrlen, utils.tr, digits);
+        stockData[TREND_DATA] = [ma1, ma2, ma3, atr, atrdev];
+      }
+    }
+
+    function check$7(index, stockData, options, tsCode) {
+      let opt = options && options.trend;
+      calculateTrend(stockData, opt);
+      let ma1 = stockData[TREND_DATA][0];
+      let ma2 = stockData[TREND_DATA][1];
+      let atr = stockData[TREND_DATA][3];
+      let atrdev = stockData[TREND_DATA][4];
+
+      if (ma1 && ma2 && atr && atrdev && ___default['default'].isArray(ma1) && ___default['default'].isArray(ma2) && ___default['default'].isArray(atr) && ___default['default'].isArray(atrdev) && index < ma1.length && index < ma2.length && index < atr.length && index < atrdev.length && index >= 0) {
+        //let data = trendData[index];
+        let currentData = stockData[index];
+        let close = currentData.close;
+
+        if (ma1[index] < ma2[index]) {
+          // 未开始
+          let nextClose = ((opt.n + 1) * (opt.m - 1) * ma2[index] - (opt.n - 1) * (opt.m + 1) * ma1[index]) / (2 * (opt.m - opt.n));
+
+          if (nextClose < 0.0) {
+            nextClose = 0.0;
+          }
+
+          if (nextClose - close <= atr[index] + atrdev[index]) {
+            // 有可能突破，展示
+            return {
+              tsCode,
+              dataIndex: index,
+              date: stockData[index].trade_date,
+              tradeType: "signal",
+              hasSignals: true,
+              signal: "PREBREAK",
+              type: "trend",
+              trend: {
+                ma1: ma1[index],
+                ma2: ma2[index],
+                atr: atr[index],
+                atrdev: atrdev[index],
+                close: close,
+                target: nextClose
+              },
+              memo: `趋势：等待突破，目标 ¥${utils.toFixed(nextClose, 2)}，需${utils.toFixed(100 * (nextClose - close) / close, 2)}%上涨`
+            };
+          }
+        } else {
+          let nextBackPrice = ((opt.n - 1) * ma1[index] + 2 * close) / (opt.n + 1);
+
+          if (close >= ma1[index] && close - nextBackPrice <= atr[index] + atrdev[index]) {
+            // 今日处于可回调范围，并且今日收盘距离预计回调价格在平均变动范围内
+            return {
+              tsCode,
+              dataIndex: index,
+              date: stockData[index].trade_date,
+              tradeType: "signal",
+              hasSignals: true,
+              signal: "PULLBACK",
+              type: "trend",
+              trend: {
+                ma1: ma1[index],
+                ma2: ma2[index],
+                atr: atr[index],
+                atrdev: atrdev[index],
+                close: close,
+                target: nextBackPrice
+              },
+              memo: `趋势：等待回调，目标 ¥${utils.toFixed(nextBackPrice, 2)}，需${utils.toFixed(100 * (close - nextBackPrice) / close, 2)}%回调`
+            };
+          }
+        }
+      }
+    } // function readContext(index, stockData) {
+    //     if (!stockData || !_.isArray(stockData)) return;
+    //     if (index < stockData.length && index >= 0) {
+    //         let contexts = stockData[SWING_CONTEXT];
+    //         if (contexts && _.isArray(contexts)) {
+    //             return contexts[index];
+    //         }
+    //     }
+    // }
+    // function saveContext(index, context, stockData) {
+    //     if (!stockData && !_.isArray(stockData)) {
+    //         return;
+    //     }
+    //     if (index < stockData.length && index >= 0) {
+    //         let contexts = stockData[SWING_CONTEXT];
+    //         if (!contexts) {
+    //             stockData[SWING_CONTEXT] = [];
+    //             contexts = stockData[SWING_CONTEXT];
+    //         }
+    //         contexts[index] = context;
+    //     }
+    // }
+
+
+    function checkBuyTransaction$9(stockInfo, balance, index, stockData, options) {
+      debug$h(`检查趋势买入：${index}, ${balance} -- 未实现`);
+    }
+
+    function checkSellTransaction$9(stockInfo, stock, index, stockData, options) {
+      debug$h(`检查趋势卖出：${index}, ${stock.count} -- 未实现`);
+    }
+    /**
+     * 返回参数配置的显示信息
+     * @param {*}} opions 参数配置
+     */
+
+
+    function showOptions$c(options) {
+      let opt = options && options.trend;
+      return `
+模型 ${trend.name}[${trend.label}] 参数：
+均线1: ${opt.n},  均线2: ${opt.m},  均线3: ${opt.l}
+波幅均值天数: ${opt.atrlen}
+`;
+    }
+
+    async function createReports$6(results, options) {
+      if (___default['default'].isNil(results)) return;
+      let reports = [];
+      let readyList = results && results["PREBREAK"];
+      let days = [{
+        label: "全部",
+        data: []
+      }];
+
+      if (!___default['default'].isEmpty(readyList)) {
+        for (let item of readyList) {
+          days[0].data.push(item.tsCode);
+        }
+
+        reports.push({
+          label: "PREBREAK",
+          data: days
+        });
+      }
+
+      let buyList = results && results["PULLBACK"];
+      let bdays = [{
+        label: "全部",
+        data: []
+      }];
+
+      if (!___default['default'].isEmpty(buyList)) {
+        for (let item of buyList) {
+          bdays[0].data.push(item.tsCode);
+        }
+
+        reports.push({
+          label: "PULLBACK",
+          data: bdays
+        });
+      }
+
+      return reports;
+    }
+
+    const trend = {
+      name: "趋势交易",
+      label: RULE_NAME$9,
+      description: "趋势选择",
+      methodTypes: {},
+      checkBuyTransaction: checkBuyTransaction$9,
+      checkSellTransaction: checkSellTransaction$9,
+      check: check$7,
+      showOptions: showOptions$c,
+      createReports: createReports$6
+    };
+
+    /**
      * 基本动量指标
      *
      * 参数：
@@ -5398,7 +5617,8 @@ WVF交易值检查 [周期: ${options.vixfix.lbn}, 最大值倍数: ${options.vi
       holp,
       rsi: RSI_PANIC,
       vixfix: WVF_PANIC,
-      everyday: everyday$1
+      everyday: everyday$1,
+      trend
     };
 
     exports.engine = engine;

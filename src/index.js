@@ -16,6 +16,7 @@ import holp from "./rules/holp";
 import rsi from "./rules/rsi-panic";
 import vixfix from "./rules/vixfix";
 import everyday from "./rules/Everyday";
+import trend from "./rules/trend";
 
 import MA from "./indicators/ma";
 import ATR from "./indicators/atr";
@@ -63,6 +64,7 @@ const rules = {
     rsi,
     vixfix,
     everyday,
+    trend,
 };
 
 export {
