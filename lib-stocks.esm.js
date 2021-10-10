@@ -1503,7 +1503,7 @@ async function search(options) {
 
   for (let stockItem of stockList) {
     // this.log(`处理数据：%o`, stockItem);
-    if (stockItem.name.match("ST")) {
+    if (!stockItem || !stockItem.name || stockItem.name.match("ST")) {
       continue;
     } // 首先读取日线信息
 
